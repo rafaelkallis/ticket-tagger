@@ -5,11 +5,8 @@
 
 const crypto = require('crypto');
 const request = require('superagent');
-const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const config = require('./config');
-
-const cert = fs.readFileSync(config.githubCert);
 
 exports.verifySignature = ({payload, secret, signature}) => {
   const digest = crypto.createHmac('sha1', secret)
@@ -38,5 +35,5 @@ function makeJwt() {
   const iat = Date.now() / 1000 | 0;
   const exp = iat + 30;
   const iss = config.githubAppId;
-  return jwt.sign({iat, exp, iss}, cert, {algorithm: 'RS256'});
+  return jwt.sign({iat, exp, iss}, config.githubCert, {algorithm: 'RS256'});
 }
