@@ -54,6 +54,5 @@ app.use(post('/webhook', async ctx => {
 }));
 
 app.listen(config.port, async () => { 
-  console.log(`ticket-tagger listening on port ${config.port}`);
-  await classifier.train();
+  console.info(`ticket-tagger listening on port ${config.port}`);
 });
