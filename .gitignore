@@ -1,2 +1,8 @@
 node_modules
 *.swp
+*.env\
+
+dataset.csv
+model.vec
+test.txt
+train.txt
