@@ -13,10 +13,10 @@ const config = require('./config');
 const app = new Koa();
 
 /* GET /status endpoint */
-app.use(get('/status'), async ctx => {
+app.use(get('/status', async ctx => {
   ctx.body = {message: 'ticket-tagger lives!'};
   ctx.status = 200;
-});
+}));
 
 app.use(body());
 
