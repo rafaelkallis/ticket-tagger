@@ -34,7 +34,9 @@ const defaultOptions = {
  
 exports.predict = async function(text) {
   // return [['bug','enhancement','question'][(Math.random() * 2.9999999999999999)|0],0];
-  const [{label, value}] = await classifier.predict(text);
+  const [prediction] = await classifier.predict(text);
+  if (!prediction) { return [null, 0]; }
+  const {label, value} = prediction;
   return [label.substring(9), value];
 }
 
