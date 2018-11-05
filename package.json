@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "src/index.js",
+  "engines": {
+    "node": "8.x"
+  },
   "scripts": {
     "start": "node src/index.js",
     "benchmark": "node src/benchmark.js",
