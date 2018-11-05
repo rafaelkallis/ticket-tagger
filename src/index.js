@@ -59,6 +59,10 @@ app.use(post('/webhook', async ctx => {
     }
   }
 
+  if (ctx.request.body.action === 'created') {
+    console.log(`${ctx.request.body.installation.account.login} installed ticket-tagger`);
+  }
+
   ctx.status = 200;
 }));
 
