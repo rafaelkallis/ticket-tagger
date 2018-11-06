@@ -5,4 +5,4 @@
 
 const classifier = require('./fasttext');
 
-classifier.train().then(() => classifier.test());
+classifier.benchmark();
