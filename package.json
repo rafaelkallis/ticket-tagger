@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
+    "train": "node src/train.js",
     "benchmark": "node src/benchmark.js",
     "dataset": "wget https://gist.githubusercontent.com/rafaelkallis/707743843fa0337277ab36b42607c46d/raw/be4c3e95733a76789885b683dfb51610fbd4b2a9/github_issues.csv -O dataset.csv"
   },

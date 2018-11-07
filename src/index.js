@@ -66,6 +66,6 @@ app.use(post('/webhook', async ctx => {
   ctx.status = 200;
 }));
 
-app.listen(config.port, async () => { 
+app.listen(config.port, () => { 
   console.info(`ticket-tagger listening on port ${config.port}`);
 });
