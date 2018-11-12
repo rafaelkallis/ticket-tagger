@@ -10,7 +10,8 @@
     "start": "node src/index.js",
     "train": "node src/train.js",
     "benchmark": "node src/benchmark.js",
-    "dataset": "wget https://gist.githubusercontent.com/rafaelkallis/707743843fa0337277ab36b42607c46d/raw/be4c3e95733a76789885b683dfb51610fbd4b2a9/github_issues.csv -O dataset.csv"
+    "dataset": "wget https://gist.githubusercontent.com/rafaelkallis/707743843fa0337277ab36b42607c46d/raw/18c5a5a55ee11d85a2b5ea320f46180353e98c03/github_issues.txt -O github_dataset.txt",
+    "dataset:vscode": "wget https://gist.githubusercontent.com/rafaelkallis/d55d1a3773e6bfe6f69e19069cc185aa/raw/251f4fe02d2a2e86c97ed3d0c30ebc8b558e966c/vscode_issues.txt -O vscode_dataset.txt"
   },
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "license": "MIT",

@@ -3,6 +3,8 @@ node_modules
 *.env\
 
 dataset.csv
+github_dataset.txt
+vscode_dataset.txt
 model.vec
 test.txt
 train.txt
