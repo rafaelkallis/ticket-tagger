@@ -10,9 +10,11 @@
     "start": "node src/index.js",
     "train": "node src/train.js",
     "benchmark": "node src/benchmark.js",
-    "dataset": "wget https://gist.githubusercontent.com/rafaelkallis/707743843fa0337277ab36b42607c46d/raw/18c5a5a55ee11d85a2b5ea320f46180353e98c03/github_issues.txt -O dataset.txt",
-    "dataset:vscode": "wget https://gist.githubusercontent.com/rafaelkallis/d55d1a3773e6bfe6f69e19069cc185aa/raw/251f4fe02d2a2e86c97ed3d0c30ebc8b558e966c/vscode_issues.txt -O dataset.txt",
-    "dataset:vscode:baseline": "wget https://gist.githubusercontent.com/rafaelkallis/d55d1a3773e6bfe6f69e19069cc185aa/raw/92e69a5d727ee7cb8e4b8e5bdfb905e3cdac41f5/baseline_issues.txt -O dataset.txt"
+    "dataset": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues.txt -O dataset.txt",
+    "dataset:english": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_english.txt -O dataset.txt",
+    "dataset:english:baseline": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_english_baseline.txt -O dataset.txt",
+    "dataset:vscode": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_vscode.txt -O dataset.txt",
+    "dataset:vscode:baseline": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_vscode_baseline.txt -O dataset.txt"
   },
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "license": "MIT",
