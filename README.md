@@ -12,6 +12,7 @@ Machine learning driven issue classification bot.
 git clone https://github.com/rafaelkallis/ticket-tagger ticket-tagger
 cd ticket-tacker
 npm install
+npm run dataset
 
 # run benchmark
 npm run benchmark
@@ -20,26 +21,41 @@ npm run benchmark
 npm start
 ```
 
-#### customize preprocessing:
+#### experiments:
 
-```js
-/* src/preprocess.js */
+For each experiment, we need a dataset that allows to test the stated hypothesis,
+as well as a baseline dataset which contains the same amount of labelled issues.
 
-const stemmer = require('natural').PorterStemmer;
+> Does a repository specific dataset affect the model's performance?
 
-/* example preprocessing method */
-module.exports = function(text) { 
-  const stem = stemmer.tokenizeAndStem(text);
-  return stem.join(' ');
-}
+```sh
+# run baseline-issues benchmark
+npm run dataset:vscode:baseline
+npm run benchmark
+
+# run vscode-issues benchmark
+npm run dataset:vscode
+npm run benchmark
+```
+
+> Does a (spoken) language specific dataset affect the models perfomrnace?
+
+```sh
+# run baseline-issues benchmark
+npm run dataset:english:baseline
+npm run benchmark
+
+# run english-issues benchmark
+npm run dataset:english
+npm run benchmark
 ```
 
 #### generate dataset:
 
-a dataset (with 10k bugs, 10k enhancements and 10k questions) is already included in the repository, or can be found [here](https://gist.github.com/rafaelkallis/707743843fa0337277ab36b42607c46d).
-the dataset was generated using github archive's which can be accessed through google [BigQuery](https://bigquery.cloud.google.com).
+A dataset (with 10k bugs, 10k enhancements and 10k questions) can be downloaded using `npm run dataset`.
+The dataset was generated using github archive's which can be accessed through google [BigQuery](https://bigquery.cloud.google.com).
 
-add the query below to your BigQuery console and adjust if needed.
+Add the query below to your BigQuery console and adjust if needed (e.g., add `__label__` prefix to labels, etc.).
 
 ```sql
 SELECT
@@ -65,7 +81,7 @@ WHERE
 
 #### run serverless app:
 
-you need a `.env` file in order to run the marketplace app.
+You need a `.env` file in order to run the github app.
 The file should look like this:
 
 ```
@@ -74,6 +90,8 @@ GITHUB_SECRET=123456
 GITHUB_APP_ID=123
 PORT=3000
 ```
+
+Note: When running app in production, environment variables should be provided by host.
 
 #### references:
 
