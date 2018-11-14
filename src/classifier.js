@@ -5,7 +5,6 @@
 
 const path = require('path');
 const {Classifier} = require('fasttext');
-const Reader = require('./dataset-reader');
 const fs = require('fs');
 const {magenta, bgMagenta} = require('chalk');
 const Liner = require('n-readlines');
@@ -14,7 +13,7 @@ const Table = require('cli-table');
 const ConfusionMatrix = require('ml-confusion-matrix');
 const franc = require('franc');
 
-const datasetPath = path.resolve(__dirname, '../github_dataset.txt');
+const datasetPath = path.resolve(__dirname, '../dataset.txt');
 const testPath = path.resolve(__dirname, '../test.txt');
 const trainPath = path.resolve(__dirname, '../train.txt');
 

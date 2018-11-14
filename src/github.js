@@ -1,5 +1,5 @@
 /**
- * @file github utils
+ * @file github.js
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 

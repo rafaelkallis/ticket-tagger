@@ -2,6 +2,7 @@ node_modules
 *.swp
 *.env\
 
+dataset.txt
 dataset.csv
 github_dataset.txt
 vscode_dataset.txt

@@ -6,8 +6,8 @@
 const Koa = require('koa');
 const body = require('koa-bodyparser');
 const {get, post} = require('koa-route');
-const classifier = require('./fasttext');
-const github = require('./github-utils');
+const classifier = require('./classifier');
+const github = require('./github');
 const config = require('./config');
 
 const app = new Koa();
