@@ -3,37 +3,62 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-const crypto = require('crypto');
-const request = require('superagent');
-const jwt = require('jsonwebtoken');
-const config = require('./config');
+"use strict";
 
-exports.verifySignature = ({payload, secret, signature}) => {
-  const digest = crypto.createHmac('sha1', secret)
+const crypto = require("crypto");
+const request = require("superagent");
+const jwt = require("jsonwebtoken");
+const config = require("./config");
+
+/**
+ * Signs the payload using the secret.
+ * Used for github payload verification.
+ *
+ * @param {String} opts.payload - The payload to sign.
+ * @param {String} opts.secret - The secret used for signing.
+ * @returns {String} The payload signature
+ */
+function sign({ payload, secret }) {
+  const digest = crypto
+    .createHmac("sha1", secret)
     .update(payload)
-    .digest('hex');
-  return `sha1=${digest}` === signature;
+    .digest("hex");
+  return `sha1=${digest}`;
 }
 
-exports.setLabels = async ({labels, issue, accessToken}) => {
-  await request.patch(issue)
-    .set('Authorization', `token ${accessToken}`)
-    .send({labels});
-}
+exports.sign = sign;
 
-exports.getAccessToken = async ({installationId}) => {
+exports.verifySignature = ({ payload, secret, signature }) =>
+  sign({ payload, secret }) === signature;
+
+exports.setLabels = async ({ labels, issue, accessToken }) => {
+  await request
+    .patch(issue)
+    .set("Authorization", `token ${accessToken}`)
+    .send({ labels });
+};
+
+exports.getAccessToken = async ({ installationId }) => {
   const response = await request
-    .post(`https://api.github.com/app/installations/${installationId}/access_tokens`)
-    .set('Authorization', `Bearer ${makeJwt()}`)
-    .set('Accept', 'application/vnd.github.machine-man-preview+json')
+    .post(
+      `https://api.github.com/app/installations/${installationId}/access_tokens`
+    )
+    .set("Authorization", `Bearer ${makeJwt()}`)
+    .set("Accept", "application/vnd.github.machine-man-preview+json");
 
-  const {token, expires_at: expiresAt} = response.body;
+  const { token } = response.body;
   return token;
-}
+};
 
+/**
+ * Creates a new JWT for authorizing ticket-tagger.
+ * Used for requesting installation specific access tokens.
+ *
+ * @returns {String} A ticket-tagger JWT
+ */
 function makeJwt() {
-  const iat = Date.now() / 1000 | 0;
+  const iat = (Date.now() / 1000) | 0;
   const exp = iat + 30;
   const iss = config.githubAppId;
-  return jwt.sign({iat, exp, iss}, config.githubCert, {algorithm: 'RS256'});
+  return jwt.sign({ iat, exp, iss }, config.githubCert, { algorithm: "RS256" });
 }

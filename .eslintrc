@@ -1,0 +1,29 @@
+{
+  "parserOptions": {
+    "ecmaVersion": 2018
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:node/recommended",
+    "plugin:promise/recommended",
+    "plugin:jest/recommended",
+    "prettier",
+    "plugin:prettier/recommended"
+  ],
+  "plugins": ["node", "promise", "jest"],
+  "rules": {
+    "require-jsdoc": ["error", {
+      "require": {
+        "FunctionDeclaration": true,
+        "MethodDefinition": true,
+        "ClassDeclaration": true,
+        "ArrowFunctionExpression": true
+      }
+    }],
+    "no-warning-comments": "warn",
+    "valid-jsdoc": "error",
+    "strict": "error",
+    "no-console": "off",
+    "node/no-unpublished-require": "off"
+  }
+}

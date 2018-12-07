@@ -3,6 +3,8 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-const classifier = require('./classifier');
+"use strict";
+
+const classifier = require("./classifier");
 
 classifier.train();

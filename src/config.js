@@ -3,8 +3,10 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config();
+"use strict";
+
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
 }
 
 exports.githubSecret = process.env.GITHUB_SECRET;
