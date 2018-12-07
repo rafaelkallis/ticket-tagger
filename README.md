@@ -50,6 +50,18 @@ npm run dataset:english
 npm run benchmark
 ```
 
+> Do code snippets affect the models perfomrnace?
+
+```sh
+# run baseline-issues benchmark
+npm run dataset:nosnip:baseline
+npm run benchmark
+
+# run nosnip-issues benchmark
+npm run dataset:nosnip
+npm run benchmark
+```
+
 #### generate dataset:
 
 A dataset (with 10k bugs, 10k enhancements and 10k questions) can be downloaded using `npm run dataset`.
