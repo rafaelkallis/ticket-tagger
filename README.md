@@ -17,6 +17,12 @@ npm run dataset
 # run benchmark
 npm run benchmark
 
+# run linter
+npm run lint
+
+# run tests
+npm test
+
 # run server
 npm start
 ```
