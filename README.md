@@ -6,12 +6,25 @@ Machine learning driven issue classification bot.
 
 ### Development
 
+#### notice:
+
+- nodejs `^8.3.x` is required to compile/install dependencies
+- `wget` is required for fetching datasets
+
 #### get started:
 
 ```sh
 git clone https://github.com/rafaelkallis/ticket-tagger ticket-tagger
 cd ticket-tacker
+
+# install appropriate nodejs version
+nvm install 8
+nvm use 8
+
+# compile/install dependencies
 npm install
+
+# fetch dataset
 npm run dataset
 
 # run benchmark
