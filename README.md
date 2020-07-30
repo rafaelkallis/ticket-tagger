@@ -110,6 +110,31 @@ The dataset was generated using github archive's which can be accessed through g
 Add the query below to your BigQuery console and adjust if needed (e.g., add `__label__` prefix to labels, etc.).
 
 ```sql
+-- v2 
+
+SELECT
+  label,
+  CONCAT(title, ' ', REGEXP_REPLACE(body, '(\r|\n|\r\n)',' ')) as text
+FROM (
+  SELECT
+    LOWER(JSON_EXTRACT_SCALAR(payload, '$.issue.labels[0].name')) AS label,
+    JSON_EXTRACT_SCALAR(payload, '$.issue.title') AS title,
+    JSON_EXTRACT_SCALAR(payload, '$.issue.body') AS body
+  FROM
+    `githubarchive.day.201802*`
+  WHERE
+    _TABLE_SUFFIX BETWEEN '01' AND '05'
+    AND type = 'IssuesEvent'
+    AND JSON_EXTRACT_SCALAR(payload, '$.action') = 'closed' )
+WHERE 
+  (label = 'bug' OR label = 'enhancement' OR label = 'question')
+  AND body != 'null';
+```
+
+###### legacy query
+```sql
+-- v1 legacy
+
 SELECT
   label, CONCAT(title, ' ', REGEXP_REPLACE(body, '(\r|\n|\r\n)',' '))
 FROM (
