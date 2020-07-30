@@ -35,11 +35,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ```sh
 git clone https://github.com/rafaelkallis/ticket-tagger ticket-tagger
-cd ticket-tacker
+cd ticket-tagger
 
 # install appropriate nodejs version
-nvm install 8
-nvm use 8
+# nvm install 8
+# nvm use 8
+npx nave use 8
 
 # compile/install dependencies
 npm install
