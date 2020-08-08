@@ -51,6 +51,7 @@ exports.setLabels = async ({ labels, issue, accessToken }) => {
   await request
     .patch(issue)
     .set("Authorization", `token ${accessToken}`)
+    .set("User-Agent", "Ticket-Tagger")
     .send({ labels });
 };
 
@@ -60,8 +61,8 @@ exports.getAccessToken = async ({ installationId }) => {
       `https://api.github.com/app/installations/${installationId}/access_tokens`
     )
     .set("Authorization", `Bearer ${makeJwt()}`)
+    .set("User-Agent", "Ticket-Tagger")
     .set("Accept", "application/vnd.github.machine-man-preview+json");
-
   const { token } = response.body;
   return token;
 };
