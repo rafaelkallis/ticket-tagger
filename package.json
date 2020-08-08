@@ -22,7 +22,7 @@
     "dataset:vscode:baseline": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_vscode_baseline.txt -O dataset.txt"
   },
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
-  "license": "MIT",
+  "license": "GPLv3",
   "dependencies": {
     "chalk": "^2.4.1",
     "envalid": "6.0.2",

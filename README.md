@@ -4,6 +4,26 @@ Machine learning driven issue classification bot.
 
 ![](https://thumbs.gfycat.com/GreedyBrownHochstettersfrog-size_restricted.gif)
 
+### License
+
+```
+Ticket Tagger automatically predicts and labels issue types.
+Copyright (C) 2018,2019,2020  Rafael Kallis
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+```
+
 ### Development
 
 #### notice:
@@ -15,11 +35,12 @@ Machine learning driven issue classification bot.
 
 ```sh
 git clone https://github.com/rafaelkallis/ticket-tagger ticket-tagger
-cd ticket-tacker
+cd ticket-tagger
 
 # install appropriate nodejs version
-nvm install 8
-nvm use 8
+# nvm install 8
+# nvm use 8
+npx nave use 8
 
 # compile/install dependencies
 npm install
@@ -89,6 +110,31 @@ The dataset was generated using github archive's which can be accessed through g
 Add the query below to your BigQuery console and adjust if needed (e.g., add `__label__` prefix to labels, etc.).
 
 ```sql
+-- v2 
+
+SELECT
+  label,
+  CONCAT(title, ' ', REGEXP_REPLACE(body, '(\r|\n|\r\n)',' ')) as text
+FROM (
+  SELECT
+    LOWER(JSON_EXTRACT_SCALAR(payload, '$.issue.labels[0].name')) AS label,
+    JSON_EXTRACT_SCALAR(payload, '$.issue.title') AS title,
+    JSON_EXTRACT_SCALAR(payload, '$.issue.body') AS body
+  FROM
+    `githubarchive.day.201802*`
+  WHERE
+    _TABLE_SUFFIX BETWEEN '01' AND '05'
+    AND type = 'IssuesEvent'
+    AND JSON_EXTRACT_SCALAR(payload, '$.action') = 'closed' )
+WHERE 
+  (label = 'bug' OR label = 'enhancement' OR label = 'question')
+  AND body != 'null';
+```
+
+###### legacy query
+```sql
+-- v1 legacy
+
 SELECT
   label, CONCAT(title, ' ', REGEXP_REPLACE(body, '(\r|\n|\r\n)',' '))
 FROM (
