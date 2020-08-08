@@ -24,11 +24,13 @@
 const Koa = require("koa");
 const body = require("koa-bodyparser");
 const { get, post } = require("koa-route");
-const classifier = require("./classifier");
+const { Classifier } = require("./classifier");
 const github = require("./github");
 const config = require("./config");
 
-module.exports = function() {
+module.exports = async function() {
+  const classifier = await Classifier.ofRemoteUri(config.FASTTEXT_MODEL_URI);
+
   const app = new Koa();
 
   /* GET /status endpoint */

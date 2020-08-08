@@ -21,6 +21,19 @@
 
 "use strict";
 
-const classifier = require("./classifier");
+const path = require("path");
+const fasttext = require("fasttext");
 
-classifier.train();
+const datasetFilepath = path.resolve(__dirname, "../dataset.txt");
+const modelFilepath = path.resolve(__dirname, "../model");
+
+train();
+
+async function train() {
+  const classifier = new fasttext.Classifier();
+  await classifier.train("supervised", {
+    input: datasetFilepath,
+    output: modelFilepath,
+    minCount: 2
+  });
+}

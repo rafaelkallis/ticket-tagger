@@ -11,8 +11,8 @@
     "test": "jest",
     "lint": "eslint --format codeframe src/*.js src/**/*.js",
     "lint:fix": "eslint --fix --format codeframe src/*.js src/**/*.js",
-    "train": "node src/train.js",
-    "benchmark": "node src/benchmark.js",
+    "train": "node scripts/train.js",
+    "benchmark": "node scripts/benchmark.js",
     "dataset": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues.txt -O dataset.txt",
     "dataset:english": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_english.txt -O dataset.txt",
     "dataset:english:baseline": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_english_baseline.txt -O dataset.txt",
@@ -24,6 +24,7 @@
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "license": "GPLv3",
   "dependencies": {
+    "applicationinsights": "1.8.5",
     "chalk": "^2.4.1",
     "envalid": "6.0.2",
     "fasttext": "1.0.0",
@@ -36,7 +37,7 @@
     "natural": "^0.6.1",
     "nodemon": "^1.18.7",
     "object-hash": "^1.3.0",
-    "superagent": "^4.0.0-beta.5"
+    "superagent": "5.3.1"
   },
   "devDependencies": {
     "eslint": "^5.9.0",

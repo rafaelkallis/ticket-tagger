@@ -21,11 +21,24 @@
 
 "use strict";
 
-const App = require("./app");
+const appInsights = require("applicationinsights");
 const config = require("./config");
 
-const app = App();
+if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
+  appInsights
+  .setup(config.APP_INSIGHTS_INSTRUMENTATION_KEY)
+  .setSendLiveMetrics(true)
+  .start()
+}
 
-app.listen(config.PORT, () => {
-  console.info(`ticket-tagger listening on port ${config.PORT}`);
-});
+const App = require("./app");
+
+async function main() {
+  const app = await App();
+
+  app.listen(config.PORT, () => {
+    console.info(`ticket-tagger listening on port ${config.PORT}`);
+  });
+}
+
+main();

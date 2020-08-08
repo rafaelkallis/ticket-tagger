@@ -28,5 +28,7 @@ module.exports = envalid.cleanEnv(process.env, {
   PORT: envalid.port({ devDefault: 3000 }),
   GITHUB_SECRET: envalid.str({ devDefault: "123456" }),
   GITHUB_CERT: envalid.str({ devDefault: "" }),
-  GITHUB_APP_ID: envalid.str({ devDefault: "123" })
+  GITHUB_APP_ID: envalid.str({ devDefault: "123" }),
+  FASTTEXT_MODEL_URI: envalid.str({ devDefault: "https://tickettagger.blob.core.windows.net/models/model.bin" }),
+  APPINSIGHTS_INSTRUMENTATIONKEY: envalid.str({ devDefault: "" })
 });

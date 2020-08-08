@@ -21,6 +21,8 @@
 
 "use strict";
 
+jest.setTimeout(30000);
+
 const request = require("supertest");
 const App = require("./app");
 const config = require("./config");
@@ -30,8 +32,8 @@ const classifier = require("./classifier");
 describe("app integration test", () => {
   let app;
 
-  beforeEach(() => {
-    app = App();
+  beforeEach(async () => {
+    app = await App();
   });
 
   it("should work", async () => {
