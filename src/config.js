@@ -5,11 +5,12 @@
 
 "use strict";
 
-if (process.env.NODE_ENV !== "production") {
-  require("dotenv").config();
-}
+const envalid = require("envalid");
 
-exports.githubSecret = process.env.GITHUB_SECRET;
-exports.githubCert = process.env.GITHUB_CERT;
-exports.githubAppId = process.env.GITHUB_APP_ID;
-exports.port = process.env.PORT;
+module.exports = envalid.cleanEnv(process.env, {
+  NODE_ENV: envalid.str({ choices: ['production', 'test', 'development'] }),
+  PORT: envalid.port({ devDefault: 3000 }),
+  GITHUB_SECRET: envalid.str(),
+  GITHUB_CERT: envalid.str(),
+  GITHUB_APP_ID: envalid.str(),
+});

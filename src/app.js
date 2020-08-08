@@ -32,7 +32,7 @@ module.exports = function() {
       ctx.assert(
         github.verifySignature({
           payload: JSON.stringify(ctx.request.body),
-          secret: config.githubSecret,
+          secret: config.GITHUB_SECRET,
           signature: ctx.headers["x-hub-signature"]
         }),
         401,

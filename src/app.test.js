@@ -33,7 +33,7 @@ describe("app integration test", () => {
         "x-hub-signature",
         github.sign({
           payload: JSON.stringify(payload),
-          secret: config.githubSecret
+          secret: config.GITHUB_SECRET
         })
       )
       .send(payload)

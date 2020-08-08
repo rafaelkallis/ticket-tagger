@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/index.js",
   "engines": {
-    "node": "^8.3.x"
+    "node": "^12.x"
   },
   "scripts": {
     "start": "node src/index.js",
@@ -25,8 +25,8 @@
   "license": "MIT",
   "dependencies": {
     "chalk": "^2.4.1",
-    "dotenv": "^6.0.0",
-    "fasttext": "^0.2.3",
+    "envalid": "6.0.2",
+    "fasttext": "1.0.0",
     "jsonwebtoken": "^8.3.0",
     "koa": "^2.5.3",
     "koa-bodyparser": "^4.2.1",
