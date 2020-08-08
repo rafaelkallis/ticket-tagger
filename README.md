@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #### notice:
 
-- nodejs `^8.3.x` is required to compile/install dependencies
+- nodejs `^12.x` is required to compile/install dependencies
 - `wget` is required for fetching datasets
 
 #### get started:
@@ -38,9 +38,9 @@ git clone https://github.com/rafaelkallis/ticket-tagger ticket-tagger
 cd ticket-tagger
 
 # install appropriate nodejs version
-# nvm install 8
-# nvm use 8
-npx nave use 8
+# nvm install 12
+# nvm use 12
+npx nave use 12
 
 # compile/install dependencies
 npm install

@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  * @file config.js
  * @author Rafael Kallis <rk@rafaelkallis.com>
@@ -24,9 +24,9 @@
 const envalid = require("envalid");
 
 module.exports = envalid.cleanEnv(process.env, {
-  NODE_ENV: envalid.str({ choices: ['production', 'test', 'development'] }),
+  NODE_ENV: envalid.str({ choices: ["production", "test", "development"] }),
   PORT: envalid.port({ devDefault: 3000 }),
-  GITHUB_SECRET: envalid.str(),
-  GITHUB_CERT: envalid.str(),
-  GITHUB_APP_ID: envalid.str(),
+  GITHUB_SECRET: envalid.str({ devDefault: "123456" }),
+  GITHUB_CERT: envalid.str({ devDefault: "" }),
+  GITHUB_APP_ID: envalid.str({ devDefault: "123" })
 });

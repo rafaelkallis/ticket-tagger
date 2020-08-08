@@ -1,7 +1,6 @@
 node_modules
 *.swp
-*.env\
-
+*.env
 dataset.txt
 dataset.csv
 github_dataset.txt
