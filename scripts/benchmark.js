@@ -22,12 +22,11 @@
 "use strict";
 
 const path = require("path");
-const { promisify } = require("util")
 const fs = require("fs");
 
 const { Classifier } = require("fasttext");
 const { magenta, bgMagenta } = require("chalk");
-const Liner = require("n-readlines");
+const readline = require("readline");
 const hash = require("object-hash");
 const ConfusionMatrix = require("ml-confusion-matrix");
 
@@ -40,7 +39,7 @@ const folds = 10;
 
 const config = {
   // wordNgrams: 1,
-  // minCount: 3
+  minCount: 3
 };
 
 benchmark();
@@ -55,15 +54,13 @@ async function benchmark() {
   const classifier = new Classifier();
   console.log(magenta(`starting ${folds} fold validation...`));
   const measures = [];
-  let liner, line;
   for (let i = 0; i < folds; i++) {
-    await fs.promises.writeFile(testPath, "");
-    await fs.promises.writeFile(trainPath, "");
-    liner = new Liner(datasetPath);
-    while ((line = liner.next())) {
-      line = line.toString();
+    fs.writeFileSync(testPath, "");
+    fs.writeFileSync(trainPath, "");
+    const datasetLines = readline.createInterface({ input: fs.createReadStream(datasetPath) });
+    for await (const line of datasetLines) {
       const bucket = parseInt(hash(line).substring(0, 11), 16) % folds;
-      await fs.promises.appendFile(bucket === i ? testPath : trainPath, line + "\n");
+      fs.appendFileSync(bucket === i ? testPath : trainPath, line + "\n");
     }
 
     await classifier.train("supervised", {
@@ -74,12 +71,11 @@ async function benchmark() {
 
     await classifier.loadModel(modelPath);
 
-    liner = new Liner(testPath);
+    const testLines = readline.createInterface({ input: fs.createReadStream(testPath) })
     const actualLabels = [];
     const predictedLabels = [];
-    while ((line = liner.next())) {
-      line = line.toString();
-      const [actual] = line.match(/^__label__[a-z]+/);
+    for await (const line of testLines) {
+      const [actual] = line.match(/__label__[a-z]+/);
       const text = line.substring(actual.length);
       const [prediction = { label: null }] = await classifier.predict(text);
       actualLabels.push(actual);
@@ -135,3 +131,8 @@ async function benchmark() {
  * @returns {number} The arithmetic mean.
  */
 function mean(arr) { return arr.reduce((a, b) => a + b) / arr.length; }
+
+function computeBucket(text, folds) {
+  const bucket = parseInt(hash(text).substring(0, 11), 16) % folds;
+  return bucket;
+}
