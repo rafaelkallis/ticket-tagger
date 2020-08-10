@@ -23,57 +23,67 @@
 
 jest.setTimeout(30000);
 
+const nock = require("nock");
 const request = require("supertest");
 const App = require("./app");
-const config = require("./config");
 const github = require("./github");
-const classifier = require("./classifier");
+const config = require("./config");
 
 describe("app integration test", () => {
   let app;
+  let signature;
+  let getAccessTokenScope;
+  let setLabelsScope;
 
   beforeEach(async () => {
     app = await App();
+
+    getAccessTokenScope = nock(`https://api.github.com`)
+      .post(`/app/installations/435111/access_tokens`)
+      .matchHeader("Authorization", /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/)
+      .matchHeader("User-Agent", "Ticket-Tagger")
+      .matchHeader("Accept", "application/vnd.github.machine-man-preview+json")
+      .delay(500)
+      .reply(200, { token: "installation-access-token" });
+
+    setLabelsScope = nock(`https://api.github.com`)
+      .matchHeader("Authorization", "token installation-access-token")
+      .matchHeader("User-Agent", "Ticket-Tagger")
+      .patch("/repos/rafaelkallis/throwaway/issues/62")
+      .delay(500)
+      .reply(200);
+
+     signature = github.sign({
+       payload: JSON.stringify(payload),
+       secret: config.GITHUB_SECRET
+     })
   });
 
-  it("should work", async () => {
-    const predictSpy = jest.spyOn(classifier, "predict");
-    const getAccessTokenSpy = jest
-      .spyOn(github, "getAccessToken")
-      .mockReturnValue(Promise.resolve("installation-access-token"));
-    const setLabelsSpy = jest
-      .spyOn(github, "setLabels")
-      .mockReturnValue(Promise.resolve());
+  afterEach(async () => {
+    nock.restore();
+  });
 
-    await request(app.callback())
+  test("integration", async () => {
+     await request(app)
       .post("/webhook")
-      .set(
-        "x-hub-signature",
-        github.sign({
-          payload: JSON.stringify(payload),
-          secret: config.GITHUB_SECRET
-        })
-      )
+      .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
+      .set("X-Github-Event", "issues.opened")
+      .set("X-Hub-Signature", signature)
       .send(payload)
       .expect(200);
 
-    expect(predictSpy).toHaveBeenCalledWith(
-      `${payload.issue.title} ${payload.issue.body}`
-    );
+    getAccessTokenScope.done();
+    setLabelsScope.done();
+  });
 
-    expect(getAccessTokenSpy).toHaveBeenCalledWith({
-      installationId: payload.installation.id
-    });
-
-    expect(setLabelsSpy).toHaveBeenCalledWith({
-      labels: ["bug"],
-      issue: payload.issue.url,
-      accessToken: "installation-access-token"
-    });
-
-    predictSpy.mockRestore();
-    getAccessTokenSpy.mockRestore();
-    setLabelsSpy.mockRestore();
+  test("reject invalid signature", async () => {
+     await request(app)
+      .post("/webhook")
+      .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
+      .set("X-Github-Event", "issues.opened")
+      .set("X-Hub-Signature", "non-sense")
+      .send(payload)
+      .expect(400);
   });
 });
 
