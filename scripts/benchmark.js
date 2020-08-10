@@ -39,7 +39,7 @@ const folds = 10;
 
 const config = {
   // wordNgrams: 1,
-  minCount: 3
+  // minCount: 3
 };
 
 benchmark();
