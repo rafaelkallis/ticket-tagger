@@ -39,7 +39,7 @@ describe("app integration test", () => {
     app = await App();
 
     getAccessTokenScope = nock(`https://api.github.com`)
-      .post(`/app/installations/435111/access_tokens`)
+      .post(`/app/installations/${payload.installation.id}/access_tokens`)
       .matchHeader("Authorization", /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/)
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Accept", "application/vnd.github.machine-man-preview+json")
@@ -56,7 +56,7 @@ describe("app integration test", () => {
      signature = github.sign({
        payload: JSON.stringify(payload),
        secret: config.GITHUB_SECRET
-     })
+     });
   });
 
   afterEach(async () => {
