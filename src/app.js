@@ -21,79 +21,54 @@
 
 "use strict";
 
-const Koa = require("koa");
-const body = require("koa-bodyparser");
-const { get, post } = require("koa-route");
+const express = require("express");
+const { Webhooks } = require("@octokit/webhooks");
+const appInsights = require("applicationinsights");
 const { Classifier } = require("./classifier");
 const github = require("./github");
 const config = require("./config");
 
-module.exports = async function() {
+module.exports = async function App() {
+  const app = express();
   const classifier = await Classifier.ofRemoteUri(config.FASTTEXT_MODEL_URI);
 
-  const app = new Koa();
+  app.get("/status", (req, res) => res.status(200).send({ message: "ticket-tagger lives!" }));
 
-  /* GET /status endpoint */
-  app.use(
-    get("/status", async ctx => {
-      ctx.body = { message: "ticket-tagger lives!" };
-      ctx.status = 200;
-    })
-  );
+  const webhooks = new Webhooks({ 
+    secret: config.GITHUB_SECRET,
+    path: "/webhook"
+  });
 
-  app.use(body());
+  webhooks.on("issues.opened", async ({ payload }) => {
+    /* extract relevant issue metadata */
+    const { title, labels, body, url } = payload.issue;
 
-  /* POST /webhook endpoint */
-  app.use(
-    post("/webhook", async ctx => {
-      /* payload integrity check */
-      ctx.assert(
-        github.verifySignature({
-          payload: JSON.stringify(ctx.request.body),
-          secret: config.GITHUB_SECRET,
-          signature: ctx.headers["x-hub-signature"]
-        }),
-        401,
-        "invalid signature"
-      );
+    /* predict label */
+    const [prediction, similarity] = await classifier.predict(
+      `${title} ${body}`
+    );
 
-      /* issue opened handler */
-      if (ctx.request.body.action === "opened") {
-        /* extract relevant issue metadata */
-        const { title, labels, body, url } = ctx.request.body.issue;
+    if (similarity > 0) {
+      /* extract installation id */
+      const installationId = payload.installation.id;
 
-        /* predict label */
-        const [prediction, similarity] = await classifier.predict(
-          `${title} ${body}`
-        );
+      /* get access token for repository */
+      const accessToken = await github.getAccessToken({ installationId });
 
-        if (similarity > 0) {
-          /* extract installation id */
-          const installationId = ctx.request.body.installation.id;
+      /* update label */
+      await github.setLabels({
+        labels: [...labels, prediction],
+        issue: url,
+        accessToken
+      });
+    }
+  });
 
-          /* get access token for repository */
-          const accessToken = await github.getAccessToken({ installationId });
+  webhooks.on("installation.created", async () => {
+    appInsights.defaultClient.trackEvent({ name: 'installation' });
+  });
+  app.use(webhooks.middleware);
 
-          /* update label */
-          await github.setLabels({
-            labels: [...labels, prediction],
-            issue: url,
-            accessToken
-          });
-        }
-      }
-
-      if (ctx.request.body.action === "created") {
-        console.log(
-          `${
-            ctx.request.body.installation.account.login
-          } installed ticket-tagger`
-        );
-      }
-
-      ctx.status = 200;
-    })
-  );
 
   return app;
 };
