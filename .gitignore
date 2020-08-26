@@ -6,5 +6,6 @@ dataset.csv
 github_dataset.txt
 vscode_dataset.txt
 model.vec
+model.bin
 test.txt
 train.txt
