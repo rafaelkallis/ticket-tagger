@@ -111,10 +111,10 @@ npm run benchmark
 Datasets can be downloaded either using `npm run dataset:balanced` or `npm run dataset:unbalanced`.
 The datasets were generated using github archive's which can be accessed through google [BigQuery](https://bigquery.cloud.google.com).
 
-Add the query below to your BigQuery console and adjust if needed (e.g., add `__label__` prefix to labels, etc.).
+Add the query below to your BigQuery console and adjust if needed (e.g., add `__label__` prefix to labels, truncate issues to create a balanced dataset, etc.).
 
 ```sql
--- unbalanced dataset 
+-- unbalanced dataset
 
 SELECT
   label,
@@ -129,30 +129,6 @@ FROM (
   WHERE
     _TABLE_SUFFIX BETWEEN '01' AND '10'
     AND type = 'IssuesEvent'
-    AND JSON_EXTRACT_SCALAR(payload, '$.action') = 'closed' )
-WHERE 
-  (label = 'bug' OR label = 'enhancement' OR label = 'question')
-  AND body != 'null';
-```
-
-```sql
--- balanced dataset
-
-SELECT
-  label, CONCAT(title, ' ', REGEXP_REPLACE(body, '(\r|\n|\r\n)',' '))
-FROM (
-  SELECT
-    LOWER(JSON_EXTRACT_SCALAR(payload, '$.issue.labels[0].name')) AS label,
-    JSON_EXTRACT_SCALAR(payload, '$.issue.title') AS title,
-    JSON_EXTRACT_SCALAR(payload, '$.issue.body') AS body
-  FROM
-    [githubarchive:day.20180201],
-    [githubarchive:day.20180202],
-    [githubarchive:day.20180203],
-    [githubarchive:day.20180204],
-    [githubarchive:day.20180205]
-  WHERE
-    type = 'IssuesEvent'
     AND JSON_EXTRACT_SCALAR(payload, '$.action') = 'closed' )
 WHERE 
   (label = 'bug' OR label = 'enhancement' OR label = 'question')
