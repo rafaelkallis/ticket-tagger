@@ -61,56 +61,60 @@ npm test
 npm start
 ```
 
-#### experiments:
+#### confounding factors:
 
-For each experiment, we need a dataset that allows to test the stated hypothesis,
-as well as a baseline dataset which contains the same amount of labelled issues.
-
-> Does a repository specific dataset affect the model's performance?
+> Impact of Label Distribution
 
 ```sh
-# run baseline-issues benchmark
-npm run dataset:vscode:baseline
+# balanced distribution
+npm run dataset:balanced
 npm run benchmark
 
-# run vscode-issues benchmark
-npm run dataset:vscode
+# unbalanced distribution
+npm run dataset:unbalanced
 npm run benchmark
 ```
 
-> Does a (spoken) language specific dataset affect the models perfomrnace?
+> Impact of function words
 
 ```sh
-# run baseline-issues benchmark
+npm run dataset:balanced
+npm run benchmark
+```
+
+> Impact of Language Consistency in Issue Tickets
+
+```sh
+# baseline
 npm run dataset:english:baseline
 npm run benchmark
 
-# run english-issues benchmark
+# english
 npm run dataset:english
 npm run benchmark
 ```
 
-> Do code snippets affect the models perfomrnace?
+> Presence of Code Snippets in Issue Tickets
 
 ```sh
-# run baseline-issues benchmark
+# baseline
 npm run dataset:nosnip:baseline
 npm run benchmark
 
-# run nosnip-issues benchmark
+# no snippets
 npm run dataset:nosnip
 npm run benchmark
 ```
 
 #### generate dataset:
 
-A dataset (with 10k bugs, 10k enhancements and 10k questions) can be downloaded using `npm run dataset`.
-The dataset was generated using github archive's which can be accessed through google [BigQuery](https://bigquery.cloud.google.com).
+Datasets can be downloaded either using `npm run dataset:balanced` or `npm run dataset:unbalanced`.
+The datasets were generated using github archive's which can be accessed through google [BigQuery](https://bigquery.cloud.google.com).
 
 Add the query below to your BigQuery console and adjust if needed (e.g., add `__label__` prefix to labels, etc.).
 
 ```sql
--- v2 
+-- unbalanced dataset 
 
 SELECT
   label,
@@ -123,7 +127,7 @@ FROM (
   FROM
     `githubarchive.day.201802*`
   WHERE
-    _TABLE_SUFFIX BETWEEN '01' AND '05'
+    _TABLE_SUFFIX BETWEEN '01' AND '10'
     AND type = 'IssuesEvent'
     AND JSON_EXTRACT_SCALAR(payload, '$.action') = 'closed' )
 WHERE 
@@ -131,9 +135,8 @@ WHERE
   AND body != 'null';
 ```
 
-###### legacy query
 ```sql
--- v1 legacy
+-- balanced dataset
 
 SELECT
   label, CONCAT(title, ' ', REGEXP_REPLACE(body, '(\r|\n|\r\n)',' '))
@@ -162,7 +165,7 @@ You need a `.env` file in order to run the github app.
 The file should look like this:
 
 ```
-GITHUB_CERT=/path/to/cert.private-key.pem
+GITHUB_CERT="<private key>"
 GITHUB_SECRET=123456
 GITHUB_APP_ID=123
 PORT=3000
