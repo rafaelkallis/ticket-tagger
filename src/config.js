@@ -29,9 +29,14 @@ module.exports = envalid.cleanEnv(process.env, {
   /* do not use the following GITHUB_SECRET in production! */
   GITHUB_SECRET: envalid.str({ devDefault: "123456" }),
   /* do not use the following GITHUB_CERT in production! */
-  GITHUB_CERT: envalid.str({ devDefault: "-----BEGIN RSA PRIVATE KEY-----\nMIIBOwIBAAJBAITFn4iFCecbUZbYluX+iD5kBQL5Zq+qv+0BliiZasE/3wsQ1WXt\nUWEJg415Awz36KZwC05/GgTPEMBv8RYS5y8CAwEAAQJACj65la42WmfoPsyNsEeY\nub+8B0O5Ybq6Po6NyKo1651l9dKSQhe31Xp7Cxdr79FUsYaW+itvYZVr7aFQHe+F\nsQIhAOVNimOdSn5NTLhyhxiK5DX8xRoOUvyfNjqtwNiVf9UJAiEAlDrxGlMKTStp\nvtNXNgZ+Lr8rCyGTQaRUKmh6QhoH4HcCIQDRX6EKXjgD5Y81KBYlGcVRanGK3iN2\nWeYJZFgfKzrjCQIgZZJuHEfCy1ZwQ562KAMS/B1q9Vmwek6MjfLBtAH6W8kCIQCE\nz5u3hfTPzDt+uUzolsZRKGiRmIwu8gPo66ljSG3cgQ==\n-----END RSA PRIVATE KEY-----" }),
+  GITHUB_CERT: envalid.str({
+    devDefault:
+      "-----BEGIN RSA PRIVATE KEY-----\nMIIBOwIBAAJBAITFn4iFCecbUZbYluX+iD5kBQL5Zq+qv+0BliiZasE/3wsQ1WXt\nUWEJg415Awz36KZwC05/GgTPEMBv8RYS5y8CAwEAAQJACj65la42WmfoPsyNsEeY\nub+8B0O5Ybq6Po6NyKo1651l9dKSQhe31Xp7Cxdr79FUsYaW+itvYZVr7aFQHe+F\nsQIhAOVNimOdSn5NTLhyhxiK5DX8xRoOUvyfNjqtwNiVf9UJAiEAlDrxGlMKTStp\nvtNXNgZ+Lr8rCyGTQaRUKmh6QhoH4HcCIQDRX6EKXjgD5Y81KBYlGcVRanGK3iN2\nWeYJZFgfKzrjCQIgZZJuHEfCy1ZwQ562KAMS/B1q9Vmwek6MjfLBtAH6W8kCIQCE\nz5u3hfTPzDt+uUzolsZRKGiRmIwu8gPo66ljSG3cgQ==\n-----END RSA PRIVATE KEY-----"
+  }),
   /* do not use the following GITHUB_APP_ID in production! */
   GITHUB_APP_ID: envalid.str({ devDefault: "123" }),
-  FASTTEXT_MODEL_URI: envalid.str({ default: "https://tickettagger.blob.core.windows.net/models/model.bin" }),
+  FASTTEXT_MODEL_URI: envalid.str({
+    default: "https://tickettagger.blob.core.windows.net/models/model.bin"
+  }),
   APPINSIGHTS_INSTRUMENTATIONKEY: envalid.str({ devDefault: "" })
 });

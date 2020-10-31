@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  * @file app integration test
  * @author Rafael Kallis <rk@rafaelkallis.com>
@@ -21,7 +21,7 @@
 
 "use strict";
 
-jest.setTimeout(30000);
+jest.setTimeout(5 * 60 * 1000);
 
 const nock = require("nock");
 const request = require("supertest");
@@ -40,7 +40,10 @@ describe("app integration test", () => {
 
     getAccessTokenScope = nock(`https://api.github.com`)
       .post(`/app/installations/${payload.installation.id}/access_tokens`)
-      .matchHeader("Authorization", /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/)
+      .matchHeader(
+        "Authorization",
+        /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/
+      )
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Accept", "application/vnd.github.machine-man-preview+json")
       .delay(500)
@@ -53,10 +56,10 @@ describe("app integration test", () => {
       .delay(500)
       .reply(200);
 
-     signature = github.sign({
-       payload: JSON.stringify(payload),
-       secret: config.GITHUB_SECRET
-     });
+    signature = github.sign({
+      payload: JSON.stringify(payload),
+      secret: config.GITHUB_SECRET
+    });
   });
 
   afterEach(async () => {
@@ -64,7 +67,7 @@ describe("app integration test", () => {
   });
 
   test("integration", async () => {
-     await request(app)
+    await request(app)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues.opened")
@@ -77,7 +80,7 @@ describe("app integration test", () => {
   });
 
   test("reject invalid signature", async () => {
-     await request(app)
+    await request(app)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues.opened")

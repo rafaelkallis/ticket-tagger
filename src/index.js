@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  * @file index
  * @author Rafael Kallis <rk@rafaelkallis.com>
@@ -26,9 +26,9 @@ const config = require("./config");
 
 if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
   appInsights
-  .setup(config.APP_INSIGHTS_INSTRUMENTATION_KEY)
-  .setSendLiveMetrics(true)
-  .start()
+    .setup(config.APP_INSIGHTS_INSTRUMENTATION_KEY)
+    .setSendLiveMetrics(true)
+    .start();
 }
 
 const App = require("./app");

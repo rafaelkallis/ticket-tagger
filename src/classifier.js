@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  * @file ticket classifier
  * @author Rafael Kallis <rk@rafaelkallis.com>
@@ -23,7 +23,7 @@
 
 const os = require("os");
 const path = require("path");
-const { promisify } = require("util")
+const { promisify } = require("util");
 const fs = require("fs");
 const pipeline = promisify(require("stream").pipeline);
 
@@ -31,7 +31,6 @@ const fasttext = require("fasttext");
 const request = require("superagent");
 
 exports.Classifier = class Classifier {
-
   constructor(modelFilepath) {
     this.fasttextClassifier = new fasttext.Classifier(modelFilepath);
   }
@@ -67,24 +66,27 @@ exports.Classifier = class Classifier {
 
     async function fetchLatestModelVersion() {
       const response = await request.head(modelUri);
-      if (!response.headers.etag) { throw new Error('no "ETag" header found'); }
+      if (!response.headers.etag) {
+        throw new Error('no "ETag" header found');
+      }
       const modelId = response.headers.etag;
       return modelId;
     }
     async function latestModelExistsLocally() {
-      return fs.promises.access(modelFilepath)
+      return fs.promises
+        .access(modelFilepath)
         .then(() => true)
         .catch(() => false);
     }
     async function fetchLatestModel() {
       console.info("fetching latest model");
       await pipeline(
-        request.get(modelUri).on('progress', logProgress),
-        fs.createWriteStream(modelFilepath),
+        request.get(modelUri).on("progress", logProgress),
+        fs.createWriteStream(modelFilepath)
       );
       function logProgress(event) {
         console.info(`latest model fetch progress: ${event.percent}`);
       }
     }
   }
-}
+};

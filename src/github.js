@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  * @file github.js
  * @author Rafael Kallis <rk@rafaelkallis.com>
@@ -77,5 +77,7 @@ function makeJwt() {
   const iat = (Date.now() / 1000) | 0;
   const exp = iat + 30;
   const iss = config.GITHUB_APP_ID;
-  return jwt.sign({ iat, exp, iss }, config.GITHUB_CERT, { algorithm: "RS256" });
+  return jwt.sign({ iat, exp, iss }, config.GITHUB_CERT, {
+    algorithm: "RS256"
+  });
 }

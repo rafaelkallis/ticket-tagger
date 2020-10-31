@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  * @file app.js
  * @author Rafael Kallis <rk@rafaelkallis.com>
@@ -32,9 +32,11 @@ module.exports = async function App() {
   const app = express();
   const classifier = await Classifier.ofRemoteUri(config.FASTTEXT_MODEL_URI);
 
-  app.get("/status", (req, res) => res.status(200).send({ message: "ticket-tagger lives!" }));
+  app.get("/status", (req, res) =>
+    res.status(200).send({ message: "ticket-tagger lives!" })
+  );
 
-  const webhooks = new Webhooks({ 
+  const webhooks = new Webhooks({
     secret: config.GITHUB_SECRET,
     path: "/webhook"
   });
@@ -65,10 +67,9 @@ module.exports = async function App() {
   });
 
   webhooks.on("installation.created", async () => {
-    appInsights.defaultClient.trackEvent({ name: 'installation' });
+    appInsights.defaultClient.trackEvent({ name: "installation" });
   });
   app.use(webhooks.middleware);
-
 
   return app;
 };

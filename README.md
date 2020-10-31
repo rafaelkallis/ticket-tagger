@@ -58,7 +58,7 @@ npm run lint
 npm test
 
 # run server
-npm start
+NODE_ENV="development" npm start
 ```
 
 #### confounding factors:
