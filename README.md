@@ -24,12 +24,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>. 
 ```
 
+### Installation
+
+![install ticket tagger](https://thumbs.gfycat.com/PaltryCheapAmberpenshell-size_restricted.gif)
+
 ### Development
 
 #### notice:
 
 - nodejs `^12.x` is required to compile/install dependencies
 - `wget` is required for fetching datasets
+- we recommend at least 8 GB of RAM if you want to train or benchmark the model
 
 #### get started:
 
@@ -38,8 +43,6 @@ git clone https://github.com/rafaelkallis/ticket-tagger ticket-tagger
 cd ticket-tagger
 
 # install appropriate nodejs version
-# nvm install 12
-# nvm use 12
 npx nave use 12
 
 # compile/install dependencies
