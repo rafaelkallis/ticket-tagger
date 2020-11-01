@@ -1,6 +1,9 @@
 # Ticket Tagger
+
 Machine learning driven issue classification bot.
-[Add to your repository now!](https://github.com/apps/ticket-tagger/installations/new)
+[Add to your repository now!](https://github.com/apps/ticket-tagger/installations)
+
+![Build](https://github.com/rafaelkallis/ticket-tagger/workflows/Continuous%20Integration/badge.svg)
 
 ![use ticket tagger](https://thumbs.gfycat.com/GreedyBrownHochstettersfrog-size_restricted.gif)
 
@@ -115,16 +118,15 @@ npm run benchmark
 #### generate dataset:
 
 Datasets can be downloaded either using `npm run dataset:balanced` or `npm run dataset:unbalanced`.
-The datasets were generated using github archive's which can be accessed through google [BigQuery](https://bigquery.cloud.google.com).
+The datasets were generated using github archive's which can be accessed through google [BigQuery](https://console.cloud.google.com/bigquery).
 
-Add the query below to your BigQuery console and adjust if needed (e.g., add `__label__` prefix to labels, truncate issues to create a balanced dataset, etc.).
+Add the query below to your BigQuery console and adjust if needed (e.g., resample issues to create a balanced dataset, etc.).
 
 ```sql
 -- unbalanced dataset
 
 SELECT
-  label,
-  CONCAT(title, ' ', REGEXP_REPLACE(body, '(\r|\n|\r\n)',' ')) as text
+  CONCAT('__label__', label, ' ', title, ' ', REGEXP_REPLACE(body, '(\r|\n|\r\n)',' '))
 FROM (
   SELECT
     LOWER(JSON_EXTRACT_SCALAR(payload, '$.issue.labels[0].name')) AS label,

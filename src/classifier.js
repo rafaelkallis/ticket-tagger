@@ -26,9 +26,8 @@ const path = require("path");
 const { promisify } = require("util");
 const fs = require("fs");
 const pipeline = promisify(require("stream").pipeline);
-
 const fasttext = require("fasttext");
-const request = require("superagent");
+const fetch = require("node-fetch");
 
 exports.Classifier = class Classifier {
   constructor(modelFilepath) {
@@ -65,11 +64,11 @@ exports.Classifier = class Classifier {
     return new Classifier(modelFilepath);
 
     async function fetchLatestModelVersion() {
-      const response = await request.head(modelUri);
-      if (!response.headers.etag) {
+      const response = await fetch(modelUri, { method: "HEAD" });
+      const modelId = response.headers.get('ETag');
+      if (!modelId) {
         throw new Error('no "ETag" header found');
       }
-      const modelId = response.headers.etag;
       return modelId;
     }
     async function latestModelExistsLocally() {
@@ -80,13 +79,11 @@ exports.Classifier = class Classifier {
     }
     async function fetchLatestModel() {
       console.info("fetching latest model");
+      const response = await fetch(modelUri);
       await pipeline(
-        request.get(modelUri).on("progress", logProgress),
+        response.body,
         fs.createWriteStream(modelFilepath)
       );
-      function logProgress(event) {
-        console.info(`latest model fetch progress: ${event.percent}`);
-      }
     }
   }
 };
