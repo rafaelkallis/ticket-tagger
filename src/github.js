@@ -78,6 +78,6 @@ function makeJwt() {
   const exp = iat + 30;
   const iss = config.GITHUB_APP_ID;
   return jwt.sign({ iat, exp, iss }, config.GITHUB_CERT, {
-    algorithm: "RS256"
+    algorithm: "RS256",
   });
 }
