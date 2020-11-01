@@ -37,6 +37,7 @@
     "express": "4.17.1",
     "fasttext": "1.0.0",
     "jsonwebtoken": "8.5.1",
+    "node-fetch": "2.6.1",
     "superagent": "6.1.0"
   },
   "devDependencies": {
@@ -53,7 +54,8 @@
     "nock": "13.0.4",
     "object-hash": "2.0.3",
     "prettier": "2.1.2",
-    "supertest": "6.0.0"
+    "supertest": "6.0.0",
+    "yargs": "16.1.0"
   },
   "jest": {
     "testEnvironment": "node"

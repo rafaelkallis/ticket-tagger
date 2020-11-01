@@ -9,3 +9,4 @@ model.vec
 model.bin
 test.txt
 train.txt
+.cache
