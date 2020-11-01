@@ -2,7 +2,13 @@
 Machine learning driven issue classification bot.
 [Add to your repository now!](https://github.com/apps/ticket-tagger/installations/new)
 
-![](https://thumbs.gfycat.com/GreedyBrownHochstettersfrog-size_restricted.gif)
+![use ticket tagger](https://thumbs.gfycat.com/GreedyBrownHochstettersfrog-size_restricted.gif)
+
+### Installation
+
+Visit our [GitHub App](https://github.com/apps/ticket-tagger) and install.
+
+![install ticket tagger](https://thumbs.gfycat.com/AfraidLongGreatargus-size_restricted.gif)
 
 ### License
 
@@ -24,9 +30,6 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>. 
 ```
 
-### Installation
-
-![install ticket tagger](https://thumbs.gfycat.com/PaltryCheapAmberpenshell-size_restricted.gif)
 
 ### Development
 
