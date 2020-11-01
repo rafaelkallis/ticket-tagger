@@ -38,7 +38,7 @@ module.exports = async function App() {
 
   const webhooks = new Webhooks({
     secret: config.GITHUB_SECRET,
-    path: "/webhook"
+    path: "/webhook",
   });
 
   webhooks.on("issues.opened", async ({ payload }) => {
@@ -61,7 +61,7 @@ module.exports = async function App() {
       await github.setLabels({
         labels: [...labels, prediction],
         issue: url,
-        accessToken
+        accessToken,
       });
     }
   });
