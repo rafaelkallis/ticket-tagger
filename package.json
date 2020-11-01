@@ -37,7 +37,7 @@
     "express": "4.17.1",
     "fasttext": "1.0.0",
     "jsonwebtoken": "8.5.1",
-    "superagent": "6.1.0"
+    "node-fetch": "2.6.1"
   },
   "devDependencies": {
     "chalk": "4.1.0",

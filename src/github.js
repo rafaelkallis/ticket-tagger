@@ -22,9 +22,9 @@
 "use strict";
 
 const crypto = require("crypto");
-const request = require("superagent");
 const jwt = require("jsonwebtoken");
 const config = require("./config");
+const fetch = require("node-fetch");
 
 /**
  * Signs the payload using the secret.
@@ -48,22 +48,28 @@ exports.verifySignature = ({ payload, secret, signature }) =>
   sign({ payload, secret }) === signature;
 
 exports.setLabels = async ({ labels, issue, accessToken }) => {
-  await request
-    .patch(issue)
-    .set("Authorization", `token ${accessToken}`)
-    .set("User-Agent", "Ticket-Tagger")
-    .send({ labels });
+  await fetch(issue, {
+    method: "PATCH",
+    headers: {
+      "Authorization": `token ${accessToken}`,
+      "Content-Type": "application/json",
+      "User-Agent": "Ticket-Tagger",
+    },
+    body: labels,
+  });
 };
 
 exports.getAccessToken = async ({ installationId }) => {
-  const response = await request
-    .post(
-      `https://api.github.com/app/installations/${installationId}/access_tokens`
-    )
-    .set("Authorization", `Bearer ${makeJwt()}`)
-    .set("User-Agent", "Ticket-Tagger")
-    .set("Accept", "application/vnd.github.machine-man-preview+json");
-  const { token } = response.body;
+  const response = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${makeJwt()}`,
+      "Content-Type": "application/json",
+      "Accept": "application/vnd.github.machine-man-preview+json",
+      "User-Agent": "Ticket-Tagger",
+    },
+  });
+  const { token } = await response.json();
   return token;
 };
 
