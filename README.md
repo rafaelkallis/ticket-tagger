@@ -118,7 +118,7 @@ npm run benchmark
 #### generate dataset:
 
 Datasets can be downloaded either using `npm run dataset:balanced` or `npm run dataset:unbalanced`.
-The datasets were generated using github archive's which can be accessed through google [BigQuery](https://bigquery.cloud.google.com).
+The datasets were generated using github archive's which can be accessed through google [BigQuery](https://console.cloud.google.com/bigquery).
 
 Add the query below to your BigQuery console and adjust if needed (e.g., add `__label__` prefix to labels, truncate issues to create a balanced dataset, etc.).
 
