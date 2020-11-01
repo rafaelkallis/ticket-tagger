@@ -36,7 +36,7 @@
     "envalid": "6.0.2",
     "express": "4.17.1",
     "fasttext": "1.0.0",
-    "jsonwebtoken": "8.5.0",
+    "jsonwebtoken": "8.5.1",
     "superagent": "6.1.0"
   },
   "devDependencies": {
