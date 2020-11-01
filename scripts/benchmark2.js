@@ -118,7 +118,8 @@ function printStats({ actual, predicted }) {
 function coerceDataset(arg) {
   const datasetTable = {
     balanced: "https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues.txt",
-    unbalanced: "https://tickettagger.blob.core.windows.net/datasets/dataset-labels-top3-30k-real.txt",
+    unbalanced: "https://tickettagger.blob.core.windows.net/datasets/github-labels-top3-30493-real.csv",
+    unbalanced2: "https://tickettagger.blob.core.windows.net/datasets/dataset-labels-top3-30k-real.txt",
   };
   return datasetTable[arg] || arg;
 }
