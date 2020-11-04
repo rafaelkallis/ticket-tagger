@@ -31,7 +31,7 @@
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "dependencies": {
     "@octokit/webhooks": "7.15.1",
-    "applicationinsights": "1.8.7",
+    "applicationinsights": "1.8.8",
     "applicationinsights-native-metrics": "0.0.5",
     "envalid": "6.0.2",
     "express": "4.17.1",
