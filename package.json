@@ -1,5 +1,5 @@
 {
-  "name": "ticket-tagger",
+  "name": "tickettagger",
   "version": "2.1.0",
   "description": "Machine learning driven issue classification bot.",
   "license": "GPL-3.0",
