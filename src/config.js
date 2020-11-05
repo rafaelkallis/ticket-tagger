@@ -22,8 +22,10 @@
 "use strict";
 
 const envalid = require("envalid");
+const os = require("os");
+const fs = require("fs");
 
-module.exports = envalid.cleanEnv(process.env, {
+const config = envalid.cleanEnv(process.env, {
   NODE_ENV: envalid.str({ choices: ["production", "test", "development"] }),
   PORT: envalid.port({ devDefault: 3000 }),
   /* do not use the following GITHUB_SECRET in production! */
@@ -39,4 +41,16 @@ module.exports = envalid.cleanEnv(process.env, {
     default: "https://tickettagger.blob.core.windows.net/models/model.bin",
   }),
   APPINSIGHTS_INSTRUMENTATIONKEY: envalid.str({ devDefault: "" }),
+  DATASET_DIR: envalid.str({ default: os.tmpdir() }),
+  MODEL_DIR: envalid.str({ default: os.tmpdir() }),
 });
+
+if (!fs.existsSync(config.DATASET_DIR)) {
+  fs.mkdirSync(config.DATASET_DIR, { recursive: true });
+}
+
+if (!fs.existsSync(config.MODEL_DIR)) {
+  fs.mkdirSync(config.MODEL_DIR, { recursive: true });
+}
+
+module.exports = config;

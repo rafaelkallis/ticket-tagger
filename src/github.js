@@ -51,7 +51,7 @@ exports.setLabels = async ({ labels, issue, accessToken }) => {
   await fetch(issue, {
     method: "PATCH",
     headers: {
-      "Authorization": `token ${accessToken}`,
+      Authorization: `token ${accessToken}`,
       "Content-Type": "application/json",
       "User-Agent": "Ticket-Tagger",
     },
@@ -60,15 +60,18 @@ exports.setLabels = async ({ labels, issue, accessToken }) => {
 };
 
 exports.getAccessToken = async ({ installationId }) => {
-  const response = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${makeJwt()}`,
-      "Content-Type": "application/json",
-      "Accept": "application/vnd.github.machine-man-preview+json",
-      "User-Agent": "Ticket-Tagger",
-    },
-  });
+  const response = await fetch(
+    `https://api.github.com/app/installations/${installationId}/access_tokens`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${makeJwt()}`,
+        "Content-Type": "application/json",
+        Accept: "application/vnd.github.machine-man-preview+json",
+        "User-Agent": "Ticket-Tagger",
+      },
+    }
+  );
   const { token } = await response.json();
   return token;
 };

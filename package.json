@@ -1,6 +1,6 @@
 {
-  "name": "@rafaelkallis/ticket-tagger",
-  "version": "2.0.2",
+  "name": "ticket-tagger",
+  "version": "2.1.0",
   "description": "Machine learning driven issue classification bot.",
   "license": "GPL-3.0",
   "repository": {
@@ -8,14 +8,17 @@
     "url": "git://github.com/rafaelkallis/ticket-tagger.git"
   },
   "main": "src/index.js",
+  "bin": {
+    "tickettagger": "bin/cli"
+  },
   "engines": {
     "node": "^12.x"
   },
   "scripts": {
     "start": "node src/index.js",
     "test": "jest",
-    "lint": "eslint --format codeframe src/*.js src/**/*.js",
-    "lint:fix": "eslint --fix --format codeframe src/*.js src/**/*.js",
+    "lint": "eslint --format codeframe src/*.js src/**/*.js bin/*.js",
+    "lint:fix": "eslint --fix --format codeframe src/*.js src/**/*.js bin/*.js",
     "train": "node scripts/train.js",
     "benchmark": "node scripts/benchmark.js",
     "dataset": "npm run-script dataset:balanced",
@@ -33,14 +36,16 @@
     "@octokit/webhooks": "7.15.1",
     "applicationinsights": "1.8.8",
     "applicationinsights-native-metrics": "0.0.5",
+    "chalk": "4.1.0",
     "envalid": "6.0.2",
     "express": "4.17.1",
     "fasttext": "1.0.0",
     "jsonwebtoken": "8.5.1",
-    "node-fetch": "2.6.1"
+    "ml-confusion-matrix": "0.4.0",
+    "node-fetch": "2.6.1",
+    "yargs": "16.1.0"
   },
   "devDependencies": {
-    "chalk": "4.1.0",
     "eslint": "7.12.1",
     "eslint-config-prettier": "6.15.0",
     "eslint-plugin-jest": "24.1.0",
@@ -48,7 +53,6 @@
     "eslint-plugin-prettier": "3.1.4",
     "eslint-plugin-promise": "4.2.1",
     "jest": "26.6.3",
-    "ml-confusion-matrix": "0.4.0",
     "natural": "2.1.5",
     "nock": "13.0.4",
     "object-hash": "2.0.3",
