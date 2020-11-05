@@ -65,6 +65,47 @@ const datasetOption = (opts) =>
     opts
   );
 
+const withHyperparameterOptions = (yargs) =>
+  yargs
+    .option("minCount", { type: "number" })
+    .option("wordNgrams", { type: "number" })
+    .option("bucket", { type: "number" })
+    .option("minn", { type: "number" })
+    .option("maxn", { type: "number" })
+    .option("t", { type: "number" })
+    .option("lr", { type: "number" })
+    .option("lrUpdateRate", { type: "number" })
+    .option("dim", { type: "number" })
+    .option("ws", { type: "number" })
+    .option("epoch", { type: "number" })
+    .option("neg", { type: "number" })
+    .option("loss", { type: "string" })
+    .option("thread", { type: "number" });
+
+const hyperparameterWhitelist = [
+  "minCount",
+  "wordNgrams",
+  "bucket",
+  "minn",
+  "maxn",
+  "t",
+  "lr",
+  "lrUpdateRate",
+  "dim",
+  "ws",
+  "epoch",
+  "neg",
+  "loss",
+  "thread",
+];
+
+const filterHyperparameters = (opts) =>
+  Object.fromEntries(
+    Object.entries(opts).filter(([key]) =>
+      hyperparameterWhitelist.includes(key)
+    )
+  );
+
 yargs(process.argv.slice(2))
   .scriptName("tickettagger")
   .command({
@@ -76,7 +117,7 @@ yargs(process.argv.slice(2))
           command: "trivial <trainingset> <testset>",
           description: "Perform a trivial validation.",
           builder: (yargs) =>
-            yargs
+            withHyperparameterOptions(yargs)
               .positional(
                 "trainingset",
                 datasetOption({
@@ -91,6 +132,12 @@ yargs(process.argv.slice(2))
                     "The dataset (key or URL) to be evaluated by the model.",
                 })
               )
+              .option("force", {
+                type: "boolean",
+                default: false,
+                description:
+                  "Force a new download even if the data is present locally.",
+              })
               .example([
                 [
                   "$0 benchmark trivial balanced unbalanced",
@@ -107,7 +154,7 @@ yargs(process.argv.slice(2))
           command: "cross <dataset>",
           description: "Perform a cross validation.",
           builder: (yargs) =>
-            yargs
+            withHyperparameterOptions(yargs)
               .positional(
                 "dataset",
                 datasetOption({
@@ -116,9 +163,14 @@ yargs(process.argv.slice(2))
                 })
               )
               .option("folds", {
-                alias: "k",
                 type: "number",
                 default: 10,
+              })
+              .option("force", {
+                type: "boolean",
+                default: false,
+                description:
+                  "Force a new download even if the data is present locally.",
               })
               .example([
                 [
@@ -137,30 +189,40 @@ yargs(process.argv.slice(2))
   .help()
   .parse();
 
-async function trivialHandler({ test, train }) {
+/**
+ * trivial validation handler
+ */
+async function trivialHandler({
+  testset: testsetUri,
+  trainingset: trainingsetUri,
+  force,
+  ...opts
+}) {
+  const trainingset = await datasetManager.fetch(trainingsetUri, force);
+  const testset = await datasetManager.fetch(testsetUri, force);
   const classifier = new Classifier();
-  train = await datasetManager.fetch(train);
-  test = await datasetManager.fetch(test);
-  if (train.id === test.id) {
-    console.warn();
+  if (trainingset.id === testset.id) {
+    console.warn(
+      chalk.bgRed(
+        "Attempting to use the same dataset for training and testing!"
+      )
+    );
   }
-  const modelPath = path.join(config.MODEL_DIR, `${train.id}.bin`);
+  const modelPath = path.join(config.MODEL_DIR, `${trainingset.id}.bin`);
   await classifier.train("supervised", {
-    input: train.path,
+    input: trainingset.path,
     output: modelPath,
-    thread: 16,
-    // epoch: 25,
-    // lr: 0.5,
-    // wordNgrams: 2,
-    // loss: "one-vs-all",
-    // ...modelConfig
+    ...filterHyperparameters(opts),
   });
   await classifier.loadModel(modelPath);
-  const { actual, predicted } = await evaluate(test.path, classifier);
+  const { actual, predicted } = await evaluate(testset.path, classifier);
   printStats({ actual, predicted });
 }
 
-async function crossHandler({ data: datasetUri, folds }) {
+/**
+ * cross validation handler
+ */
+async function crossHandler({ dataset: datasetUri, folds, force, ...opts }) {
   console.log(chalk.magenta(`running ${folds}-fold cross validation`));
   const classifier = new Classifier();
   const actual = [];
@@ -170,12 +232,13 @@ async function crossHandler({ data: datasetUri, folds }) {
       datasetUri,
       folds,
       run,
-      force: true,
+      force,
     });
     const modelPath = path.join(config.MODEL_DIR, `${id}.bin`);
     await classifier.train("supervised", {
       input: trainPath,
       output: modelPath,
+      ...filterHyperparameters(opts),
     });
     await classifier.loadModel(modelPath);
     const { actual: runActual, predicted: runPredicted } = await evaluate(
