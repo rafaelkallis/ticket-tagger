@@ -1,6 +1,3 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
 name: Continuous Integration
 
 on:
@@ -27,3 +24,5 @@ jobs:
       run: npm ci
     - name: Test
       run: npm test
+    - name: Test cli benchmark
+      run: node bin/tickettagger.js benchmark trivial balanced unbalanced --minCount 50
