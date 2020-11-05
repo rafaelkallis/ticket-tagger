@@ -65,7 +65,7 @@ exports.Classifier = class Classifier {
 
     async function fetchLatestModelVersion() {
       const response = await fetch(modelUri, { method: "HEAD" });
-      const modelId = response.headers.get('ETag');
+      const modelId = response.headers.get("ETag");
       if (!modelId) {
         throw new Error('no "ETag" header found');
       }
@@ -80,10 +80,7 @@ exports.Classifier = class Classifier {
     async function fetchLatestModel() {
       console.info("fetching latest model");
       const response = await fetch(modelUri);
-      await pipeline(
-        response.body,
-        fs.createWriteStream(modelFilepath)
-      );
+      await pipeline(response.body, fs.createWriteStream(modelFilepath));
     }
   }
 };

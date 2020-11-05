@@ -25,15 +25,16 @@ const path = require("path");
 const fs = require("fs");
 const { promisify } = require("util");
 const pipeline = promisify(require("stream").pipeline);
-const fetch = require('node-fetch');
+const fetch = require("node-fetch");
 const config = require("./config");
+const readline = require("readline");
+const crypto = require("crypto");
 
 exports.DatasetManager = class DatasetManager {
-
   /**
    * Fetch a dataset.
    * @param {string} datasetUri URI of the dataset.
-   * @param {boolean} force 
+   * @param {boolean} force
    */
   async fetch(datasetUri, force = false) {
     const datasetId = await this.fetchId(datasetUri);
@@ -46,15 +47,55 @@ exports.DatasetManager = class DatasetManager {
   }
 
   /**
-   * Fetches the Id of the dataset. Id is based on ETag of the dataset. 
+   * Fetches the Id of the dataset. Id is based on ETag of the dataset.
    * @param {string} datasetUri URI of the datasaet.
    */
   async fetchId(datasetUri) {
     const response = await fetch(datasetUri, { method: "HEAD" });
-    const datasetId = response.headers.get('ETag')
+    const datasetId = response.headers.get("ETag");
     if (!datasetId) {
       throw new Error('no "ETag" header found');
     }
     return encodeURIComponent(datasetId);
+  }
+
+  /**
+   *
+   * @param {object} opts
+   * @param {string} opts.datasetUri
+   * @param {number} opts.folds
+   * @param {number} opts.run
+   * @param {boolean} opts.force
+   */
+  async fetchFold({ datasetUri, folds, run, force = false }) {
+    if (run >= folds) {
+      throw new Error("'run' must be less than 'folds'");
+    }
+    const { id: datasetId, path: datasetPath } = await this.fetch(
+      datasetUri,
+      force
+    );
+    const id = `${datasetId}_${folds}_${run}`;
+    const trainPath = path.join(config.DATASET_DIR, `${id}_train.txt`);
+    const testPath = path.join(config.DATASET_DIR, `${id}_test.txt`);
+    if (force || !fs.existsSync(trainPath) || !fs.existsSync(testPath)) {
+      fs.writeFileSync(testPath, "");
+      fs.writeFileSync(trainPath, "");
+      const datasetLines = readline.createInterface({
+        input: fs.createReadStream(datasetPath),
+      });
+      for await (const line of datasetLines) {
+        const bucket = hash(line) % folds;
+        fs.appendFileSync(bucket === run ? testPath : trainPath, line + "\n");
+      }
+    }
+    return { id, trainPath, testPath };
+    function hash(text) {
+      const digest = crypto
+        .createHash("md5")
+        .update(text, "utf8")
+        .digest("hex");
+      return parseInt(digest.substring(0, 11), 16);
+    }
   }
 };
