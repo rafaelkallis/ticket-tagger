@@ -9,7 +9,7 @@
   },
   "main": "src/index.js",
   "bin": {
-    "tickettagger": "bin/cli"
+    "tickettagger": "bin/tickettagger.js"
   },
   "engines": {
     "node": "^12.x"
