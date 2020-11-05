@@ -24,16 +24,22 @@
 "use strict";
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const readline = require("readline");
 const yargs = require("yargs");
 const { Classifier } = require("fasttext");
 const chalk = require("chalk");
 const ConfusionMatrix = require("ml-confusion-matrix");
-const config = require("../src/config");
 const { DatasetManager } = require("../src/dataset-manager");
 
-const datasetManager = new DatasetManager();
+const MODEL_DIR = path.join(os.tmpdir(), "ticket-tagger", "models");
+const DATASET_DIR = path.join(os.tmpdir(), "ticket-tagger", "datasets");
+
+fs.mkdirSync(MODEL_DIR, { recursive: true });
+fs.mkdirSync(DATASET_DIR, { recursive: true });
+
+const datasetManager = new DatasetManager({ DATASET_DIR });
 const labels = ["__label__bug", "__label__enhancement", "__label__question"];
 const datasetTable = {
   balanced:
@@ -208,7 +214,7 @@ async function trivialHandler({
       )
     );
   }
-  const modelPath = path.join(config.MODEL_DIR, `${trainingset.id}.bin`);
+  const modelPath = path.join(MODEL_DIR, `${trainingset.id}.bin`);
   await classifier.train("supervised", {
     input: trainingset.path,
     output: modelPath,
@@ -234,7 +240,7 @@ async function crossHandler({ dataset: datasetUri, folds, force, ...opts }) {
       run,
       force,
     });
-    const modelPath = path.join(config.MODEL_DIR, `${id}.bin`);
+    const modelPath = path.join(MODEL_DIR, `${id}.bin`);
     await classifier.train("supervised", {
       input: trainPath,
       output: modelPath,

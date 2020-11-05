@@ -26,11 +26,14 @@ const fs = require("fs");
 const { promisify } = require("util");
 const pipeline = promisify(require("stream").pipeline);
 const fetch = require("node-fetch");
-const config = require("./config");
 const readline = require("readline");
 const crypto = require("crypto");
 
 exports.DatasetManager = class DatasetManager {
+  constructor(config) {
+    this.config = config;
+  }
+
   /**
    * Fetch a dataset.
    * @param {string} datasetUri URI of the dataset.
@@ -38,7 +41,7 @@ exports.DatasetManager = class DatasetManager {
    */
   async fetch(datasetUri, force = false) {
     const datasetId = await this.fetchId(datasetUri);
-    const datasetPath = path.join(config.DATASET_DIR, `${datasetId}.txt`);
+    const datasetPath = path.join(this.config.DATASET_DIR, `${datasetId}.txt`);
     if (force || !fs.existsSync(datasetPath)) {
       const response = await fetch(datasetUri);
       await pipeline(response.body, fs.createWriteStream(datasetPath));
@@ -76,8 +79,8 @@ exports.DatasetManager = class DatasetManager {
       force
     );
     const id = `${datasetId}_${folds}_${run}`;
-    const trainPath = path.join(config.DATASET_DIR, `${id}_train.txt`);
-    const testPath = path.join(config.DATASET_DIR, `${id}_test.txt`);
+    const trainPath = path.join(this.config.DATASET_DIR, `${id}_train.txt`);
+    const testPath = path.join(this.config.DATASET_DIR, `${id}_test.txt`);
     if (force || !fs.existsSync(trainPath) || !fs.existsSync(testPath)) {
       fs.writeFileSync(testPath, "");
       fs.writeFileSync(trainPath, "");
