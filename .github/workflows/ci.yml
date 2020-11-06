@@ -25,4 +25,4 @@ jobs:
     - name: Test
       run: npm test
     - name: Test cli benchmark
-      run: node bin/tickettagger.js benchmark trivial balanced unbalanced --minCount 50
+      run: node bin/tickettagger.js benchmark trivial 30k 30k --minCount 50
