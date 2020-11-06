@@ -1,6 +1,6 @@
 {
   "name": "tickettagger",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Machine learning driven issue classification bot.",
   "license": "GPL-3.0",
   "repository": {
