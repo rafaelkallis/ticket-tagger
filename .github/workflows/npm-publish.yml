@@ -14,7 +14,7 @@ jobs:
           node-version: 12
       - run: npm ci
       - run: npm test
-      - run: node bin/tickettagger.js benchmark trivial balanced unbalanced --minCount 50
+      - run: node bin/tickettagger.js benchmark trivial 30k 30k --minCount 50
 
   publish-npm:
     needs: build
