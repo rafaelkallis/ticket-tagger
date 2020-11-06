@@ -120,9 +120,8 @@ console.log(chalk.magenta(`tickettagger, Copyright (C) ${new Date().getFullYear(
 
 yargs(process.argv.slice(2))
   .scriptName("tickettagger")
-  .usage("$0 <command>")
   .command({
-    command: `${chalk.magenta(benchmark)} <mode>`,
+    command: "benchmark <mode>",
     description: "Run benchmarks on Ticket-Tagger.",
     builder: (yargs) =>
       yargs
@@ -199,7 +198,7 @@ yargs(process.argv.slice(2))
         }),
   })
   .command({
-    command: `${chalk.magenta(train)} <dataset> <model>`,
+    command: "train <dataset> <model>",
     description: "Train a model.",
     builder: (yargs) =>
       withHyperparameterOptions(yargs)
