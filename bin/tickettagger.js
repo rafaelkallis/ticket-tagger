@@ -42,13 +42,13 @@ fs.mkdirSync(DATASET_DIR, { recursive: true });
 const datasetManager = new DatasetManager({ DATASET_DIR });
 const labels = ["__label__bug", "__label__enhancement", "__label__question"];
 const datasetTable = {
-  ['30k']:
+  ["30k"]:
     "https://tickettagger.blob.core.windows.net/datasets/github-labels-top3-30493-real.csv",
-  ['127k']: 
+  ["127k"]:
     "https://tickettagger.blob.core.windows.net/datasets/github-labels-top3-real-127k.txt",
-  ['397k']:
+  ["397k"]:
     "https://tickettagger.blob.core.windows.net/datasets/github-labels-top3-real-397k.txt",
-  ['30k-balanced']:
+  ["30k-balanced"]:
     "https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues.txt",
   english:
     "https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_english.txt",
@@ -116,7 +116,11 @@ const filterHyperparameters = (opts) =>
     )
   );
 
-console.log(chalk.magenta(`tickettagger, Copyright (C) ${new Date().getFullYear()} Rafael Kallis, GPL-v3 license\n`))
+console.log(
+  chalk.magenta(
+    `tickettagger, Copyright (C) ${new Date().getFullYear()} Rafael Kallis, GPL-v3 license\n`
+  )
+);
 
 yargs(process.argv.slice(2))
   .scriptName("tickettagger")
@@ -205,8 +209,7 @@ yargs(process.argv.slice(2))
         .positional(
           "dataset",
           datasetOption({
-            description:
-              "The dataset (key or URL) to train the model with.",
+            description: "The dataset (key or URL) to train the model with.",
           })
         )
         .option("force", {
@@ -293,9 +296,14 @@ async function crossHandler({ dataset: datasetUri, folds, force, ...opts }) {
 }
 
 /**
- * Train a model. 
+ * Train a model.
  */
-async function trainHandler({ dataset: datasetUri, model: modelPath, force, ...opts }) {
+async function trainHandler({
+  dataset: datasetUri,
+  model: modelPath,
+  force,
+  ...opts
+}) {
   const dataset = await datasetManager.fetch(datasetUri, force);
   const classifier = new Classifier();
   await classifier.train("supervised", {
@@ -305,12 +313,12 @@ async function trainHandler({ dataset: datasetUri, model: modelPath, force, ...o
   });
 }
 
-function cleanHandler({}) {
+function cleanHandler() {
   for (const datasetPath of fs.readdirSync(DATASET_DIR)) {
-    fs.unlinkSync(path.join(DATASET_DIR, datasetPath)); 
+    fs.unlinkSync(path.join(DATASET_DIR, datasetPath));
   }
   for (const modelPath of fs.readdirSync(MODEL_DIR)) {
-    fs.unlinkSync(path.join(MODEL_DIR, modelPath)); 
+    fs.unlinkSync(path.join(MODEL_DIR, modelPath));
   }
 }
 
@@ -325,7 +333,10 @@ async function* evaluateIter(datasetPath, classifier) {
     }
     const [actual] = line.match(/__label__[a-zA-Z0-9]+/);
     const text = line.substring(actual.length);
-    const [predictionResult = { label: null }] = await classifier.predict(text, 1);
+    const [predictionResult = { label: null }] = await classifier.predict(
+      text,
+      1
+    );
     const predicted = predictionResult.label;
     yield { actual, predicted };
   }
@@ -338,7 +349,7 @@ async function evaluateInline(datasetPath, classifier, actual, predicted) {
     predicted.push(recordPredicted);
   }
 }
-  
+
 function printStats({ actual, predicted }) {
   const cm = ConfusionMatrix.fromLabels(actual, predicted);
   console.log(chalk.bgMagenta("  stats  "));
