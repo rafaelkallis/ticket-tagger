@@ -56,7 +56,7 @@ exports.setLabels = async ({ labels, issue, accessToken }) => {
       "Content-Type": "application/json",
       Accept: "application/vnd.github.v3+json",
     },
-    body: labels,
+    body: JSON.stringify({ labels }),
   });
 };
 
