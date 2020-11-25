@@ -1,7 +1,7 @@
 # Ticket Tagger
 
 Machine learning driven issue classification bot.
-[Add to your repository now!](https://github.com/apps/ticket-tagger/installations)
+[Add to your repository now!](https://github.com/apps/ticket-tagger/installations/new)
 
 ![Build](https://github.com/rafaelkallis/ticket-tagger/workflows/Continuous%20Integration/badge.svg)
 
