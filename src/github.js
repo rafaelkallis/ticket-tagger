@@ -49,11 +49,12 @@ exports.verifySignature = ({ payload, secret, signature }) =>
 
 exports.setLabels = async ({ labels, issue, accessToken }) => {
   await fetch(issue, {
-    method: "PATCH",
+    method: "PUT",
     headers: {
       Authorization: `token ${accessToken}`,
-      "Content-Type": "application/json",
       "User-Agent": "Ticket-Tagger",
+      "Content-Type": "application/json",
+      Accept: "application/vnd.github.v3+json",
     },
     body: labels,
   });
@@ -66,9 +67,9 @@ exports.getAccessToken = async ({ installationId }) => {
       method: "POST",
       headers: {
         Authorization: `Bearer ${makeJwt()}`,
-        "Content-Type": "application/json",
-        Accept: "application/vnd.github.machine-man-preview+json",
         "User-Agent": "Ticket-Tagger",
+        "Content-Type": "application/json",
+        Accept: "application/vnd.github.v3+json",
       },
     }
   );

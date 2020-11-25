@@ -45,14 +45,17 @@ describe("app integration test", () => {
         /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/
       )
       .matchHeader("User-Agent", "Ticket-Tagger")
-      .matchHeader("Accept", "application/vnd.github.machine-man-preview+json")
+      .matchHeader("Content-Type", "application/json")
+      .matchHeader("Accept", "application/vnd.github.v3+json")
       .delay(500)
       .reply(200, { token: "installation-access-token" });
 
     setLabelsScope = nock(`https://api.github.com`)
       .matchHeader("Authorization", "token installation-access-token")
       .matchHeader("User-Agent", "Ticket-Tagger")
-      .patch("/repos/rafaelkallis/throwaway/issues/62")
+      .matchHeader("Content-Type", "application/json")
+      .matchHeader("Accept", "application/vnd.github.v3+json")
+      .put("/repos/rafaelkallis/throwaway/issues/62")
       .delay(500)
       .reply(200);
 
