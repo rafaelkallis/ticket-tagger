@@ -34,12 +34,12 @@ const fetch = require("node-fetch");
  * @param {String} opts.secret - The secret used for signing.
  * @returns {String} The payload signature
  */
-function sign({ payload, secret }) {
+function sign({ payload, secret, algorithm = "sha256" }) {
   const digest = crypto
-    .createHmac("sha1", secret)
+    .createHmac(algorithm, secret)
     .update(payload)
     .digest("hex");
-  return `sha1=${digest}`;
+  return `${algorithm}=${digest}`;
 }
 
 exports.sign = sign;

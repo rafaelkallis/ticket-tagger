@@ -31,7 +31,8 @@ const config = require("./config");
 
 describe("app integration test", () => {
   let app;
-  let signature;
+  let signatureSha1;
+  let signatureSha256;
   let getAccessTokenScope;
   let setLabelsScope;
 
@@ -59,9 +60,16 @@ describe("app integration test", () => {
       .delay(500)
       .reply(200);
 
-    signature = github.sign({
+    signatureSha1 = github.sign({
       payload: JSON.stringify(payload),
       secret: config.GITHUB_SECRET,
+      algorithm: "sha1",
+    });
+    
+    signatureSha256 = github.sign({
+      payload: JSON.stringify(payload),
+      secret: config.GITHUB_SECRET,
+      algorithm: "sha256",
     });
   });
 
@@ -73,8 +81,9 @@ describe("app integration test", () => {
     const response = await request(app)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
-      .set("X-Github-Event", "issues.opened")
-      .set("X-Hub-Signature", signature)
+      .set("X-Github-Event", "issues")
+      .set("X-Hub-Signature", signatureSha1)
+      .set("X-Hub-Signature-256", signatureSha256)
       .send(payload);
 
     expect(response.status).toBe(200);
@@ -89,6 +98,7 @@ describe("app integration test", () => {
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues.opened")
       .set("X-Hub-Signature", "non-sense")
+      .set("X-Hub-Signature-256", "non-sense")
       .send(payload);
 
     expect(response.status).toBe(400);
