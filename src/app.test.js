@@ -55,7 +55,7 @@ describe("app integration test", () => {
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Content-Type", "application/json")
       .matchHeader("Accept", "application/vnd.github.v3+json")
-      .put("/repos/rafaelkallis/throwaway/issues/62")
+      .put("/repos/rafaelkallis/throwaway/issues/62/labels")
       .delay(500)
       .reply(200);
 

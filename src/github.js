@@ -48,7 +48,7 @@ exports.verifySignature = ({ payload, secret, signature }) =>
   sign({ payload, secret }) === signature;
 
 exports.setLabels = async ({ labels, issue, accessToken }) => {
-  await fetch(issue, {
+  await fetch(issue + "/labels", {
     method: "PUT",
     headers: {
       Authorization: `token ${accessToken}`,
