@@ -64,12 +64,12 @@ module.exports = async function App() {
         accessToken,
       });
 
-      // appInsights.defaultClient.trackEvent({ name: "Classified" });
+      appInsights.defaultClient?.trackEvent({ name: "Classified" });
     }
   });
 
   webhooks.on("installation.created", async () => {
-    appInsights.defaultClient.trackEvent({ name: "Installed" });
+    appInsights.defaultClient?.trackEvent({ name: "Installed" });
   });
   app.use(webhooks.middleware);
 
