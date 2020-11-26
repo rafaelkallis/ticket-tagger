@@ -65,7 +65,7 @@ describe("app integration test", () => {
       secret: config.GITHUB_SECRET,
       algorithm: "sha1",
     });
-    
+
     signatureSha256 = github.sign({
       payload: JSON.stringify(payload),
       secret: config.GITHUB_SECRET,

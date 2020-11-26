@@ -63,8 +63,8 @@ module.exports = async function App() {
         issue: url,
         accessToken,
       });
-    
-      appInsights.defaultClient.trackEvent({ name: "Classified" });
+
+      // appInsights.defaultClient.trackEvent({ name: "Classified" });
     }
   });
 
