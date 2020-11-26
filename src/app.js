@@ -63,11 +63,13 @@ module.exports = async function App() {
         issue: url,
         accessToken,
       });
+    
+      appInsights.defaultClient.trackEvent({ name: "Classified" });
     }
   });
 
   webhooks.on("installation.created", async () => {
-    appInsights.defaultClient.trackEvent({ name: "installation" });
+    appInsights.defaultClient.trackEvent({ name: "Installed" });
   });
   app.use(webhooks.middleware);
 

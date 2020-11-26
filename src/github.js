@@ -91,3 +91,5 @@ function makeJwt() {
     algorithm: "RS256",
   });
 }
+
+console.log(makeJwt())
