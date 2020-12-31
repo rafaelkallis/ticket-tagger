@@ -33,6 +33,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>. 
 ```
 
+### Derivative Work
+- [BEE](https://github.com/sea-lab-wm/bee-tool), Yang Song and Oscar Chaparro
 
 ### Development
 
