@@ -15,36 +15,38 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file index
+ * @file telemetry
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
 "use strict";
 
+const EventEmitter = require("events");
 const appInsights = require("applicationinsights");
-const config = require("./config");
-const telemetry = require("./telemetry");
 
-if (config.isDevelopment) {
-  telemetry.attachConsole();
+class Telemetry {
+  constructor() {
+    this.emitter = new EventEmitter();
+  }
+
+  event(name) {
+    this.emitter.emit("event", name);
+  }
+
+  onEvent(handler) {
+    this.emitter.on("event", handler);
+  }
+
+  attachConsole() {
+    this.onEvent((name) => console.info(`Event emitted: ${name}`));
+  }
+
+  attachAppInsights() {
+    if (!appInsights.defaultClient) {
+      return;
+    }
+    this.onEvent((name) => appInsights.defaultClient.trackEvent({ name }));
+  }
 }
 
-if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
-  appInsights
-    .setup(config.APPINSIGHTS_INSTRUMENTATIONKEY)
-    .setSendLiveMetrics(true)
-    .start();
-  telemetry.attachAppInsights();
-}
-
-const App = require("./app");
-
-async function main() {
-  const app = await App();
-
-  app.listen(config.PORT, () => {
-    console.info(`ticket-tagger listening on port ${config.PORT}`);
-  });
-}
-
-main();
+module.exports = new Telemetry();

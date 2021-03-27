@@ -23,10 +23,10 @@
 
 const express = require("express");
 const { Webhooks } = require("@octokit/webhooks");
-const appInsights = require("applicationinsights");
 const { Classifier } = require("./classifier");
 const github = require("./github");
 const config = require("./config");
+const telemetry = require("./telemetry");
 
 module.exports = async function App() {
   const app = express();
@@ -64,12 +64,12 @@ module.exports = async function App() {
         accessToken,
       });
 
-      // appInsights.defaultClient.trackEvent({ name: "Classified" });
+      telemetry.event("Classified");
     }
   });
 
   webhooks.on("installation.created", async () => {
-    appInsights.defaultClient.trackEvent({ name: "Installed" });
+    telemetry.event("Installed");
   });
   app.use(webhooks.middleware);
 
