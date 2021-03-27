@@ -26,7 +26,7 @@ const config = require("./config");
 
 if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
   appInsights
-    .setup(config.APP_INSIGHTS_INSTRUMENTATION_KEY)
+    .setup(config.APP_INSIGHTS_INSTRUMENTATIONKEY)
     .setSendLiveMetrics(true)
     .start();
 }
