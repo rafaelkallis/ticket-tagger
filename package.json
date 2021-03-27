@@ -35,7 +35,7 @@
   "dependencies": {
     "@octokit/webhooks": "7.15.2",
     "applicationinsights": "1.8.8",
-    "applicationinsights-native-metrics": "0.0.5",
+    "applicationinsights-native-metrics": "0.0.6",
     "chalk": "4.1.0",
     "envalid": "6.0.2",
     "express": "4.17.1",
