@@ -21,10 +21,14 @@
 
 "use strict";
 
+const dotenv = require("dotenv");
 const envalid = require("envalid");
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
+
+/* parses .env file into process.env */
+dotenv.config();
 
 const config = envalid.cleanEnv(process.env, {
   NODE_ENV: envalid.str({ choices: ["production", "test", "development"] }),
