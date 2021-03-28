@@ -42,25 +42,27 @@ module.exports = async function App() {
   });
 
   webhooks.on("issues.opened", async ({ payload }) => {
-    /* extract relevant issue metadata */
-    const { title, labels, body, url } = payload.issue;
+    /* get access token for repository */
+    const accessToken = await github.getAccessToken({
+      installationId: payload.installation.id,
+    });
+
+    const getConfigResponse = await github.getConfigFile({
+      repository: payload.repository.url,
+      accessToken,
+    });
 
     /* predict label */
     const [prediction, similarity] = await classifier.predict(
-      `${title} ${body}`
+      `${payload.issue.title} ${payload.issue.body}`
     );
 
     if (similarity > 0) {
-      /* extract installation id */
-      const installationId = payload.installation.id;
-
-      /* get access token for repository */
-      const accessToken = await github.getAccessToken({ installationId });
-
       /* update label */
       await github.setLabels({
-        labels: [...labels, prediction],
-        issue: url,
+        repository: payload.repository.url,
+        issue: payload.issue.number,
+        labels: [...payload.issue.labels, prediction],
         accessToken,
       });
 

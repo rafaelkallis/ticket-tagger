@@ -21,10 +21,12 @@
 
 "use strict";
 
+const config = require("./config");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const config = require("./config");
 const fetch = require("node-fetch");
+const yaml = require("yaml");
+const Joi = require("joi");
 
 /**
  * Signs the payload using the secret.
@@ -47,8 +49,8 @@ exports.sign = sign;
 exports.verifySignature = ({ payload, secret, signature }) =>
   sign({ payload, secret }) === signature;
 
-exports.setLabels = async ({ labels, issue, accessToken }) => {
-  await fetch(issue + "/labels", {
+exports.setLabels = async ({ repository, issue, labels, accessToken }) => {
+  return await fetch(`${repository}/issues/${issue}/labels`, {
     method: "PUT",
     headers: {
       Authorization: `token ${accessToken}`,
@@ -58,6 +60,46 @@ exports.setLabels = async ({ labels, issue, accessToken }) => {
     },
     body: JSON.stringify({ labels }),
   });
+};
+
+const repositoryConfigSchema = Joi.object({
+  version: Joi.number().allow(3),
+  labels: Joi.object().pattern(
+    Joi.string().valid("bug", "enhancement", "question"),
+    {
+      text: Joi.string().length(50),
+    }
+  ),
+});
+exports.getRepositoryConfig = async ({ repository, accessToken }) => {
+  const response = await fetch(
+    `${repository}/contents/${config.CONFIG_FILE_PATH}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `token ${accessToken}`,
+        "User-Agent": "Ticket-Tagger",
+        Accept: "application/vnd.github.v3+json",
+      },
+    }
+  );
+  if (!response.ok) {
+    return null;
+  }
+  const body = await response.json();
+  const repositoryConfigYaml = Buffer.from(body.content, "base64").toString(
+    "utf8"
+  );
+  let repositoryConfig = null;
+  try {
+    repositoryConfig = yaml.parse(repositoryConfigYaml);
+  } catch (err) {
+    return null;
+  }
+  if (repositoryConfigSchema.validate(repositoryConfig).error) {
+    return null;
+  }
+  return repositoryConfig;
 };
 
 exports.getAccessToken = async ({ installationId }) => {
