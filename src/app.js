@@ -28,6 +28,8 @@ const github = require("./github");
 const config = require("./config");
 const telemetry = require("./telemetry");
 
+
+
 module.exports = async function App() {
   const app = express();
   const classifier = await Classifier.ofRemoteUri(config.FASTTEXT_MODEL_URI);
@@ -47,7 +49,7 @@ module.exports = async function App() {
       installationId: payload.installation.id,
     });
 
-    const getConfigResponse = await github.getConfigFile({
+    const repositoryConfig = await github.getRepositoryConfig({
       repository: payload.repository.url,
       accessToken,
     });
