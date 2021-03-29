@@ -33,7 +33,7 @@
   },
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "dependencies": {
-    "@octokit/webhooks": "8.7.2",
+    "@octokit/webhooks": "8.8.0",
     "applicationinsights": "1.8.10",
     "applicationinsights-native-metrics": "0.0.6",
     "chalk": "4.1.0",
