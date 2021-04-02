@@ -72,37 +72,35 @@ const repositoryConfigSchema = Joi.object({
   ),
 });
 exports.getRepositoryConfig = async ({ repository, accessToken }) => {
-  const response = await fetch(
-    `${repository}/contents/${config.CONFIG_FILE_PATH}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `token ${accessToken}`,
-        "User-Agent": "Ticket-Tagger",
-        Accept: "application/vnd.github.v3+json",
-      },
-    }
-  );
+  const url = `${repository}/contents/${config.CONFIG_FILE_PATH}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `token ${accessToken}`,
+      "User-Agent": "Ticket-Tagger",
+      Accept: "application/vnd.github.v3+json",
+    },
+  });
   if (!response.ok) {
-    return null;
+    return {};
   }
   const body = await response.json();
   const repositoryConfigYaml = Buffer.from(body.content, "base64").toString(
     "utf8"
   );
-  let repositoryConfig = null;
+  let repositoryConfig;
   try {
     repositoryConfig = yaml.parse(repositoryConfigYaml);
   } catch (err) {
-    return null;
+    return {};
   }
   if (repositoryConfigSchema.validate(repositoryConfig).error) {
-    return null;
+    return {};
   }
   return repositoryConfig;
 };
 
-exports.getAccessToken = async ({ installationId }) => {
+exports.createAccessToken = async ({ installationId }) => {
   const response = await fetch(
     `https://api.github.com/app/installations/${installationId}/access_tokens`,
     {

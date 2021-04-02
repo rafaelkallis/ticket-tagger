@@ -31,15 +31,24 @@ const config = require("./config");
 
 describe("app integration test", () => {
   let app;
+  let installationAccessToken;
+  let createAccessTokenScope;
+  let createAccessTokenResult;
+  let getRepositoryConfigScope;
+  let getRepositoryConfigResult;
+  let setLabelsScope;
+  let setLabelsResult;
   let signatureSha1;
   let signatureSha256;
-  let getAccessTokenScope;
-  let setLabelsScope;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await App();
+  });
 
-    getAccessTokenScope = nock(`https://api.github.com`)
+  beforeEach(() => {
+    installationAccessToken = `access-token-${Date.now()}`;
+
+    createAccessTokenScope = nock(`https://api.github.com`)
       .post(`/app/installations/${payload.installation.id}/access_tokens`)
       .matchHeader(
         "Authorization",
@@ -49,16 +58,29 @@ describe("app integration test", () => {
       .matchHeader("Content-Type", "application/json")
       .matchHeader("Accept", "application/vnd.github.v3+json")
       .delay(500)
-      .reply(200, { token: "installation-access-token" });
+      .reply(() => createAccessTokenResult);
+    createAccessTokenResult = [200, { token: installationAccessToken }];
 
-    setLabelsScope = nock(`https://api.github.com`)
-      .matchHeader("Authorization", "token installation-access-token")
+    getRepositoryConfigScope = nock("https://api.github.com")
+      .get(
+        `/repos/${payload.repository.full_name}/contents/.tickettagger/config.yml`
+      )
+      .matchHeader("Authorization", `token ${installationAccessToken}`)
+      .matchHeader("User-Agent", "Ticket-Tagger")
+      .matchHeader("Accept", "application/vnd.github.v3+json")
+      .delay(500)
+      .reply(() => getRepositoryConfigResult);
+    getRepositoryConfigResult = [200, { content: "" }];
+
+    setLabelsScope = nock("https://api.github.com")
+      .put(`/repos/${payload.repository.full_name}/issues/62/labels`)
+      .matchHeader("Authorization", `token ${installationAccessToken}`)
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Content-Type", "application/json")
       .matchHeader("Accept", "application/vnd.github.v3+json")
-      .put("/repos/rafaelkallis/throwaway/issues/62/labels")
       .delay(500)
-      .reply(200);
+      .reply(() => setLabelsResult);
+    setLabelsResult = [200];
 
     signatureSha1 = github.sign({
       payload: JSON.stringify(payload),
@@ -74,7 +96,7 @@ describe("app integration test", () => {
   });
 
   afterEach(async () => {
-    nock.restore();
+    nock.cleanAll();
   });
 
   test("integration", async () => {
@@ -88,7 +110,26 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(200);
 
-    getAccessTokenScope.done();
+    createAccessTokenScope.done();
+    getRepositoryConfigScope.done();
+    setLabelsScope.done();
+  });
+
+  test("get repository config responds 403", async () => {
+    getRepositoryConfigResult = [403, {}];
+
+    const response = await request(app)
+      .post("/webhook")
+      .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
+      .set("X-Github-Event", "issues")
+      .set("X-Hub-Signature", signatureSha1)
+      .set("X-Hub-Signature-256", signatureSha256)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+
+    createAccessTokenScope.done();
+    getRepositoryConfigScope.done();
     setLabelsScope.done();
   });
 

@@ -23,12 +23,26 @@
 
 const express = require("express");
 const { Webhooks } = require("@octokit/webhooks");
+const { defaultsDeep } = require("lodash");
+const Joi = require("joi");
 const { Classifier } = require("./classifier");
 const github = require("./github");
 const config = require("./config");
 const telemetry = require("./telemetry");
+const { repositoryConfigSchema } = require("./schemata");
 
-
+const repositoryConfigLabelDefaults = (text) => ({
+  text,
+});
+const repositoryConfigDefaults = {
+  version: 3,
+  labels: {
+    bug: repositoryConfigLabelDefaults("bug"),
+    enhancement: repositoryConfigLabelDefaults("enhancement"),
+    question: repositoryConfigLabelDefaults("question"),
+  },
+};
+Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
 module.exports = async function App() {
   const app = express();
@@ -44,8 +58,8 @@ module.exports = async function App() {
   });
 
   webhooks.on("issues.opened", async ({ payload }) => {
-    /* get access token for repository */
-    const accessToken = await github.getAccessToken({
+    /* create access token for repository */
+    const accessToken = await github.createAccessToken({
       installationId: payload.installation.id,
     });
 
@@ -53,18 +67,21 @@ module.exports = async function App() {
       repository: payload.repository.url,
       accessToken,
     });
+    defaultsDeep(repositoryConfig, repositoryConfigDefaults);
 
     /* predict label */
-    const [prediction, similarity] = await classifier.predict(
+    const [predictedLabelKey, similarity] = await classifier.predict(
       `${payload.issue.title} ${payload.issue.body}`
     );
+
+    const label = repositoryConfig.labels[predictedLabelKey];
 
     if (similarity > 0) {
       /* update label */
       await github.setLabels({
         repository: payload.repository.url,
         issue: payload.issue.number,
-        labels: [...payload.issue.labels, prediction],
+        labels: [...payload.issue.labels, label.text],
         accessToken,
       });
 
