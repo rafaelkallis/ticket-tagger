@@ -57,37 +57,49 @@ module.exports = async function App() {
     path: "/webhook",
   });
 
-  webhooks.on("issues.opened", async ({ payload }) => {
-    /* create access token for repository */
-    const accessToken = await github.createInstallationAccessToken({
-      installationId: payload.installation.id,
+  webhooks.on("issues.opened", handleIssueOpened);
+  async function handleIssueOpened({ payload }) {
+    const { installation, repository, issue } = payload;
+
+    /* get installation permissions */
+    const permissions = await github.getInstallationPermissions({ 
+      installation,
+      repository,
     });
 
-    const repositoryConfig = await github.getRepositoryConfig({
-      repository: payload.repository.url,
-      installationAccessToken: accessToken,
+    /* abort if no issue issue permission */
+    if (!permissions.canWrite("issues")) return;
+
+    const repositoryClient = await github.createRepositoryClient({
+      installation,
+      repository,
     });
+
+    let repositoryConfig = {};
+    if (permissions.canRead("single_file")) {
+      repositoryConfig = await repositoryClient.getRepositoryConfig();
+    }
     defaultsDeep(repositoryConfig, repositoryConfigDefaults);
 
     /* predict label */
     const [predictedLabelKey, similarity] = await classifier.predict(
-      `${payload.issue.title} ${payload.issue.body}`
+      `${issue.title} ${issue.body}`
     );
 
     const label = repositoryConfig.labels[predictedLabelKey];
 
     if (similarity > 0) {
       /* update label */
-      await github.setLabels({
-        repository: payload.repository.url,
-        issue: payload.issue.number,
-        labels: [...payload.issue.labels, label.text],
-        installationAccessToken: accessToken,
+      await repositoryClient.setIssueLabels({
+        issue: issue.number,
+        labels: [...issue.labels, label.text],
       });
 
       telemetry.event("Classified");
     }
-  });
+
+    await repositoryClient.revokeAccessToken();
+  }
 
   webhooks.on("installation.created", async () => {
     telemetry.event("Installed");

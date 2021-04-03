@@ -27,6 +27,8 @@ const yaml = require("yaml");
 const Joi = require("joi");
 const config = require("./config");
 
+const baseUrl = "https://api.github.com";
+
 const repositoryConfigSchema = Joi.object({
   version: Joi.number().allow(3),
   labels: Joi.object().pattern(
@@ -37,20 +39,102 @@ const repositoryConfigSchema = Joi.object({
   ),
 });
 
-class GitHubClient {
+class GitHubAppClient {
   constructor({ config }) {
     this.config = config;
+  }
+
+  async createRepositoryClient({ installation, repository }) {
+    const installationAccessToken = await this.createRepositoryAccessToken({
+      installation,
+      repository,
+    });
+    return new GitHubRepositoryClient({
+      config: this.config,
+      repository,
+      installationAccessToken,
+    });
+  }
+
+  /**
+   * Get permissions of installation for the authenticated app.
+   * @see https://docs.github.com/en/rest/reference/apps#get-an-installation-for-the-authenticated-app
+   */
+  async getInstallationPermissions({ installation }) {
+    const url = `${baseUrl}/app/installations/${installation.id}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.createAppAccessToken()}`,
+        "User-Agent": "Ticket-Tagger",
+        Accept: "application/vnd.github.v3+json",
+      },
+    });
+    const { permissions } = await response.json();
+    return {
+      canRead(permission) {
+        return ["read", "write"].includes(permissions[permission]);
+      },
+      canWrite(permission) {
+        return ["write"].includes(permissions[permission]);
+      },
+    };
+  }
+
+  /**
+   * Create an installation access token for a repository.
+   * @see https://docs.github.com/en/rest/reference/apps#create-an-installation-access-token-for-an-app
+   */
+  async createRepositoryAccessToken({ installation, repository }) {
+    const url = `${baseUrl}/app/installations/${installation.id}/access_tokens`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.createAppAccessToken()}`,
+        "User-Agent": "Ticket-Tagger",
+        "Content-Type": "application/json",
+        Accept: "application/vnd.github.v3+json",
+      },
+      body: JSON.stringify({ repository_ids: [repository.id] }),
+    });
+    const body = await response.json();
+    return body.token;
+  }
+
+  /**
+   * Creates a new JWT for authorizing ticket-tagger.
+   * Used for requesting installation specific access tokens.
+   * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-a-github-app
+   *
+   * @returns {String} A ticket-tagger JWT
+   */
+  createAppAccessToken() {
+    const iat = (Date.now() / 1000) | 0;
+    const exp = iat + 30;
+    const iss = this.config.GITHUB_APP_ID;
+    return jwt.sign({ iat, exp, iss }, this.config.GITHUB_CERT, {
+      algorithm: "RS256",
+    });
+  }
+}
+
+class GitHubRepositoryClient {
+  constructor({ config, repository, installationAccessToken }) {
+    this.config = config;
+    this.repository = repository;
+    this.installationAccessToken = installationAccessToken;
   }
 
   /**
    * Set the issue's labels.
    * @see https://docs.github.com/en/rest/reference/issues#update-an-issue
    */
-  async setLabels({ repository, issue, labels, installationAccessToken }) {
-    return await fetch(`${repository}/issues/${issue}/labels`, {
+  async setIssueLabels({ issue, labels }) {
+    const url = `${this.repository.url}/issues/${issue}/labels`;
+    return await fetch(url, {
       method: "PUT",
       headers: {
-        Authorization: `token ${installationAccessToken}`,
+        Authorization: `token ${this.installationAccessToken}`,
         "User-Agent": "Ticket-Tagger",
         "Content-Type": "application/json",
         Accept: "application/vnd.github.v3+json",
@@ -63,12 +147,12 @@ class GitHubClient {
    * Get the repository's tickettager config.
    * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
    */
-  async getRepositoryConfig({ repository, installationAccessToken }) {
-    const url = `${repository}/contents/${this.config.CONFIG_FILE_PATH}`;
+  async getRepositoryConfig() {
+    const url = `${this.repository.url}/contents/${this.config.CONFIG_FILE_PATH}`;
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        Authorization: `token ${installationAccessToken}`,
+        Authorization: `token ${this.installationAccessToken}`,
         "User-Agent": "Ticket-Tagger",
         Accept: "application/vnd.github.v3+json",
       },
@@ -92,42 +176,17 @@ class GitHubClient {
     return repositoryConfig;
   }
 
-  /**
-   * Create an installation access token.
-   * @see https://docs.github.com/en/rest/reference/apps#create-an-installation-access-token-for-an-app
-   */
-  async createInstallationAccessToken({ installationId }) {
-    const response = await fetch(
-      `https://api.github.com/app/installations/${installationId}/access_tokens`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.createAppAccessToken()}`,
-          "User-Agent": "Ticket-Tagger",
-          "Content-Type": "application/json",
-          Accept: "application/vnd.github.v3+json",
-        },
-      }
-    );
-    const { token } = await response.json();
-    return token;
-  }
-
-  /**
-   * Creates a new JWT for authorizing ticket-tagger.
-   * Used for requesting installation specific access tokens.
-   * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-a-github-app
-   *
-   * @returns {String} A ticket-tagger JWT
-   */
-  createAppAccessToken() {
-    const iat = (Date.now() / 1000) | 0;
-    const exp = iat + 30;
-    const iss = this.config.GITHUB_APP_ID;
-    return jwt.sign({ iat, exp, iss }, this.config.GITHUB_CERT, {
-      algorithm: "RS256",
+  async revokeAccessToken() {
+    const url = `${baseUrl}/app/installation/token`;
+    await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `token ${this.installationAccessToken}`,
+        "User-Agent": "Ticket-Tagger",
+        Accept: "application/vnd.github.v3+json",
+      },
     });
   }
 }
 
-module.exports = new GitHubClient({ config });
+module.exports = new GitHubAppClient({ config });
