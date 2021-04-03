@@ -21,46 +21,11 @@
 
 "use strict";
 
-const config = require("./config");
-const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const fetch = require("node-fetch");
 const yaml = require("yaml");
 const Joi = require("joi");
-
-/**
- * Signs the payload using the secret.
- * Used for github payload verification.
- *
- * @param {String} opts.payload - The payload to sign.
- * @param {String} opts.secret - The secret used for signing.
- * @returns {String} The payload signature
- */
-function sign({ payload, secret, algorithm = "sha256" }) {
-  const digest = crypto
-    .createHmac(algorithm, secret)
-    .update(payload)
-    .digest("hex");
-  return `${algorithm}=${digest}`;
-}
-
-exports.sign = sign;
-
-exports.verifySignature = ({ payload, secret, signature }) =>
-  sign({ payload, secret }) === signature;
-
-exports.setLabels = async ({ repository, issue, labels, accessToken }) => {
-  return await fetch(`${repository}/issues/${issue}/labels`, {
-    method: "PUT",
-    headers: {
-      Authorization: `token ${accessToken}`,
-      "User-Agent": "Ticket-Tagger",
-      "Content-Type": "application/json",
-      Accept: "application/vnd.github.v3+json",
-    },
-    body: JSON.stringify({ labels }),
-  });
-};
+const config = require("./config");
 
 const repositoryConfigSchema = Joi.object({
   version: Joi.number().allow(3),
@@ -71,63 +36,98 @@ const repositoryConfigSchema = Joi.object({
     }
   ),
 });
-exports.getRepositoryConfig = async ({ repository, accessToken }) => {
-  const url = `${repository}/contents/${config.CONFIG_FILE_PATH}`;
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `token ${accessToken}`,
-      "User-Agent": "Ticket-Tagger",
-      Accept: "application/vnd.github.v3+json",
-    },
-  });
-  if (!response.ok) {
-    return {};
-  }
-  const body = await response.json();
-  const repositoryConfigYaml = Buffer.from(body.content, "base64").toString(
-    "utf8"
-  );
-  let repositoryConfig;
-  try {
-    repositoryConfig = yaml.parse(repositoryConfigYaml);
-  } catch (err) {
-    return {};
-  }
-  if (repositoryConfigSchema.validate(repositoryConfig).error) {
-    return {};
-  }
-  return repositoryConfig;
-};
 
-exports.createAccessToken = async ({ installationId }) => {
-  const response = await fetch(
-    `https://api.github.com/app/installations/${installationId}/access_tokens`,
-    {
-      method: "POST",
+class GitHubClient {
+  constructor({ config }) {
+    this.config = config;
+  }
+
+  /**
+   * Set the issue's labels.
+   * @see https://docs.github.com/en/rest/reference/issues#update-an-issue
+   */
+  async setLabels({ repository, issue, labels, accessToken }) {
+    return await fetch(`${repository}/issues/${issue}/labels`, {
+      method: "PUT",
       headers: {
-        Authorization: `Bearer ${makeJwt()}`,
+        Authorization: `token ${accessToken}`,
         "User-Agent": "Ticket-Tagger",
         "Content-Type": "application/json",
         Accept: "application/vnd.github.v3+json",
       },
-    }
-  );
-  const { token } = await response.json();
-  return token;
-};
+      body: JSON.stringify({ labels }),
+    });
+  }
 
-/**
- * Creates a new JWT for authorizing ticket-tagger.
- * Used for requesting installation specific access tokens.
- *
- * @returns {String} A ticket-tagger JWT
- */
-function makeJwt() {
-  const iat = (Date.now() / 1000) | 0;
-  const exp = iat + 30;
-  const iss = config.GITHUB_APP_ID;
-  return jwt.sign({ iat, exp, iss }, config.GITHUB_CERT, {
-    algorithm: "RS256",
-  });
+  /**
+   * Get the repository's tickettager config.
+   * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
+   */
+  async getRepositoryConfig({ repository, accessToken }) {
+    const url = `${repository}/contents/${this.config.CONFIG_FILE_PATH}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${accessToken}`,
+        "User-Agent": "Ticket-Tagger",
+        Accept: "application/vnd.github.v3+json",
+      },
+    });
+    if (!response.ok) {
+      return {};
+    }
+    const body = await response.json();
+    const repositoryConfigYaml = Buffer.from(body.content, "base64").toString(
+      "utf8"
+    );
+    let repositoryConfig;
+    try {
+      repositoryConfig = yaml.parse(repositoryConfigYaml);
+    } catch (err) {
+      return {};
+    }
+    if (repositoryConfigSchema.validate(repositoryConfig).error) {
+      return {};
+    }
+    return repositoryConfig;
+  }
+
+  /**
+   * Create an installation access token.
+   * @see https://docs.github.com/en/rest/reference/apps#create-an-installation-access-token-for-an-app
+   */
+  async createAccessToken({ installationId }) {
+    const response = await fetch(
+      `https://api.github.com/app/installations/${installationId}/access_tokens`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.makeJwt()}`,
+          "User-Agent": "Ticket-Tagger",
+          "Content-Type": "application/json",
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+    const { token } = await response.json();
+    return token;
+  }
+
+  /**
+   * Creates a new JWT for authorizing ticket-tagger.
+   * Used for requesting installation specific access tokens.
+   * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-a-github-app
+   *
+   * @returns {String} A ticket-tagger JWT
+   */
+  makeJwt() {
+    const iat = (Date.now() / 1000) | 0;
+    const exp = iat + 30;
+    const iss = this.config.GITHUB_APP_ID;
+    return jwt.sign({ iat, exp, iss }, this.config.GITHUB_CERT, {
+      algorithm: "RS256",
+    });
+  }
 }
+
+module.exports = new GitHubClient({ config });

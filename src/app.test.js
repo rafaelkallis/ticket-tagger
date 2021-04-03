@@ -23,10 +23,10 @@
 
 jest.setTimeout(5 * 60 * 1000);
 
+const crypto = require("crypto");
 const nock = require("nock");
 const request = require("supertest");
 const App = require("./app");
-const github = require("./github");
 const config = require("./config");
 
 describe("app integration test", () => {
@@ -82,15 +82,13 @@ describe("app integration test", () => {
       .reply(() => setLabelsResult);
     setLabelsResult = [200];
 
-    signatureSha1 = github.sign({
+    signatureSha1 = signPayload({
       payload: JSON.stringify(payload),
-      secret: config.GITHUB_SECRET,
       algorithm: "sha1",
     });
 
-    signatureSha256 = github.sign({
+    signatureSha256 = signPayload({
       payload: JSON.stringify(payload),
-      secret: config.GITHUB_SECRET,
       algorithm: "sha256",
     });
   });
@@ -145,6 +143,14 @@ describe("app integration test", () => {
     expect(response.status).toBe(400);
   });
 });
+
+function signPayload({ payload, algorithm }) {
+  const digest = crypto
+    .createHmac(algorithm, config.GITHUB_SECRET)
+    .update(payload)
+    .digest("hex");
+  return `${algorithm}=${digest}`;
+}
 
 const payload = {
   action: "opened",
