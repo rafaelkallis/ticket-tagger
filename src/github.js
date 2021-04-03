@@ -21,73 +21,59 @@
 
 "use strict";
 
-const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const config = require("./config");
 const fetch = require("node-fetch");
 
-/**
- * Signs the payload using the secret.
- * Used for github payload verification.
- *
- * @param {String} opts.payload - The payload to sign.
- * @param {String} opts.secret - The secret used for signing.
- * @returns {String} The payload signature
- */
-function sign({ payload, secret, algorithm = "sha256" }) {
-  const digest = crypto
-    .createHmac(algorithm, secret)
-    .update(payload)
-    .digest("hex");
-  return `${algorithm}=${digest}`;
-}
+class GitHubClient {
+  constructor({ config }) {
+    this.config = config;
+  }
 
-exports.sign = sign;
-
-exports.verifySignature = ({ payload, secret, signature }) =>
-  sign({ payload, secret }) === signature;
-
-exports.setLabels = async ({ labels, issue, accessToken }) => {
-  await fetch(issue + "/labels", {
-    method: "PUT",
-    headers: {
-      Authorization: `token ${accessToken}`,
-      "User-Agent": "Ticket-Tagger",
-      "Content-Type": "application/json",
-      Accept: "application/vnd.github.v3+json",
-    },
-    body: JSON.stringify({ labels }),
-  });
-};
-
-exports.getAccessToken = async ({ installationId }) => {
-  const response = await fetch(
-    `https://api.github.com/app/installations/${installationId}/access_tokens`,
-    {
-      method: "POST",
+  async setLabels({ labels, issue, accessToken }) {
+    await fetch(issue + "/labels", {
+      method: "PUT",
       headers: {
-        Authorization: `Bearer ${makeJwt()}`,
+        Authorization: `token ${accessToken}`,
         "User-Agent": "Ticket-Tagger",
         "Content-Type": "application/json",
         Accept: "application/vnd.github.v3+json",
       },
-    }
-  );
-  const { token } = await response.json();
-  return token;
-};
+      body: JSON.stringify({ labels }),
+    });
+  }
 
-/**
- * Creates a new JWT for authorizing ticket-tagger.
- * Used for requesting installation specific access tokens.
- *
- * @returns {String} A ticket-tagger JWT
- */
-function makeJwt() {
-  const iat = (Date.now() / 1000) | 0;
-  const exp = iat + 30;
-  const iss = config.GITHUB_APP_ID;
-  return jwt.sign({ iat, exp, iss }, config.GITHUB_CERT, {
-    algorithm: "RS256",
-  });
+  async getAccessToken({ installationId }) {
+    const response = await fetch(
+      `https://api.github.com/app/installations/${installationId}/access_tokens`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.makeJwt()}`,
+          "User-Agent": "Ticket-Tagger",
+          "Content-Type": "application/json",
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+    const { token } = await response.json();
+    return token;
+  }
+
+  /**
+   * Creates a new JWT for authorizing ticket-tagger.
+   * Used for requesting installation specific access tokens.
+   *
+   * @returns {String} A ticket-tagger JWT
+   */
+  makeJwt() {
+    const iat = (Date.now() / 1000) | 0;
+    const exp = iat + 30;
+    const iss = this.config.GITHUB_APP_ID;
+    return jwt.sign({ iat, exp, iss }, this.config.GITHUB_CERT, {
+      algorithm: "RS256",
+    });
+  }
 }
+
+module.exports = new GitHubClient({ config });
