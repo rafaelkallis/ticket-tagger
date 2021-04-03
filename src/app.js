@@ -31,17 +31,17 @@ const config = require("./config");
 const telemetry = require("./telemetry");
 const { repositoryConfigSchema } = require("./schemata");
 
-const repositoryConfigLabelDefaults = (text) => ({
-  enabled: true,
-  text,
-});
 const repositoryConfigDefaults = {
   version: 3,
-  labels: {
-    bug: repositoryConfigLabelDefaults("bug"),
-    enhancement: repositoryConfigLabelDefaults("enhancement"),
-    question: repositoryConfigLabelDefaults("question"),
-  },
+  labels: Object.fromEntries(
+    ["bug", "enhancement", "question"].map((label) => [
+      label,
+      {
+        enabled: true,
+        text: label,
+      },
+    ])
+  ),
 };
 Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
