@@ -46,11 +46,11 @@ class GitHubClient {
    * Set the issue's labels.
    * @see https://docs.github.com/en/rest/reference/issues#update-an-issue
    */
-  async setLabels({ repository, issue, labels, accessToken }) {
+  async setLabels({ repository, issue, labels, installationAccessToken }) {
     return await fetch(`${repository}/issues/${issue}/labels`, {
       method: "PUT",
       headers: {
-        Authorization: `token ${accessToken}`,
+        Authorization: `token ${installationAccessToken}`,
         "User-Agent": "Ticket-Tagger",
         "Content-Type": "application/json",
         Accept: "application/vnd.github.v3+json",
@@ -63,12 +63,12 @@ class GitHubClient {
    * Get the repository's tickettager config.
    * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
    */
-  async getRepositoryConfig({ repository, accessToken }) {
+  async getRepositoryConfig({ repository, installationAccessToken }) {
     const url = `${repository}/contents/${this.config.CONFIG_FILE_PATH}`;
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        Authorization: `token ${accessToken}`,
+        Authorization: `token ${installationAccessToken}`,
         "User-Agent": "Ticket-Tagger",
         Accept: "application/vnd.github.v3+json",
       },
@@ -96,13 +96,13 @@ class GitHubClient {
    * Create an installation access token.
    * @see https://docs.github.com/en/rest/reference/apps#create-an-installation-access-token-for-an-app
    */
-  async createAccessToken({ installationId }) {
+  async createInstallationAccessToken({ installationId }) {
     const response = await fetch(
       `https://api.github.com/app/installations/${installationId}/access_tokens`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.makeJwt()}`,
+          Authorization: `Bearer ${this.createAppAccessToken()}`,
           "User-Agent": "Ticket-Tagger",
           "Content-Type": "application/json",
           Accept: "application/vnd.github.v3+json",
@@ -120,7 +120,7 @@ class GitHubClient {
    *
    * @returns {String} A ticket-tagger JWT
    */
-  makeJwt() {
+  createAppAccessToken() {
     const iat = (Date.now() / 1000) | 0;
     const exp = iat + 30;
     const iss = this.config.GITHUB_APP_ID;

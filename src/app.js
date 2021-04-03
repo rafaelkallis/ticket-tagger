@@ -59,13 +59,13 @@ module.exports = async function App() {
 
   webhooks.on("issues.opened", async ({ payload }) => {
     /* create access token for repository */
-    const accessToken = await github.createAccessToken({
+    const accessToken = await github.createInstallationAccessToken({
       installationId: payload.installation.id,
     });
 
     const repositoryConfig = await github.getRepositoryConfig({
       repository: payload.repository.url,
-      accessToken,
+      installationAccessToken: accessToken,
     });
     defaultsDeep(repositoryConfig, repositoryConfigDefaults);
 
@@ -82,7 +82,7 @@ module.exports = async function App() {
         repository: payload.repository.url,
         issue: payload.issue.number,
         labels: [...payload.issue.labels, label.text],
-        accessToken,
+        installationAccessToken: accessToken,
       });
 
       telemetry.event("Classified");
