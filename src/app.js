@@ -32,6 +32,7 @@ const telemetry = require("./telemetry");
 const { repositoryConfigSchema } = require("./schemata");
 
 const repositoryConfigLabelDefaults = (text) => ({
+  enabled: true,
   text,
 });
 const repositoryConfigDefaults = {
@@ -89,11 +90,13 @@ module.exports = async function App() {
     const label = repositoryConfig.labels[predictedLabelKey];
 
     if (similarity > 0) {
-      /* update label */
-      await repositoryClient.setIssueLabels({
-        issue: issue.number,
-        labels: [...issue.labels, label.text],
-      });
+      if (label.enabled) {
+        /* update label */
+        await repositoryClient.setIssueLabels({
+          issue: issue.number,
+          labels: [...issue.labels, label.text],
+        });
+      }
 
       telemetry.event("Classified");
     }

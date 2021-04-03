@@ -28,6 +28,7 @@ exports.repositoryConfigSchema = Joi.object({
   labels: Joi.object().pattern(
     Joi.string().valid("bug", "enhancement", "question"),
     {
+      enabled: Joi.boolean(),
       text: Joi.string().max(50),
     }
   ),
