@@ -24,20 +24,10 @@
 const jwt = require("jsonwebtoken");
 const fetch = require("node-fetch");
 const yaml = require("yaml");
-const Joi = require("joi");
 const config = require("./config");
+const { repositoryConfigSchema } = require("./schemata");
 
 const baseUrl = "https://api.github.com";
-
-const repositoryConfigSchema = Joi.object({
-  version: Joi.number().allow(3),
-  labels: Joi.object().pattern(
-    Joi.string().valid("bug", "enhancement", "question"),
-    {
-      text: Joi.string().length(50),
-    }
-  ),
-});
 
 class GitHubAppClient {
   constructor({ config }) {
@@ -72,6 +62,7 @@ class GitHubAppClient {
     });
     const { permissions } = await response.json();
     return {
+      raw: permissions,
       canRead(permission) {
         return ["read", "write"].includes(permissions[permission]);
       },
@@ -164,14 +155,14 @@ class GitHubRepositoryClient {
     const repositoryConfigYaml = Buffer.from(body.content, "base64").toString(
       "utf8"
     );
-    let repositoryConfig;
+    let repositoryConfig = {};
     try {
       repositoryConfig = yaml.parse(repositoryConfigYaml);
     } catch (err) {
-      return {};
+      repositoryConfig = {};
     }
     if (repositoryConfigSchema.validate(repositoryConfig).error) {
-      return {};
+      repositoryConfig = {};
     }
     return repositoryConfig;
   }
