@@ -25,7 +25,7 @@ const express = require("express");
 const { Webhooks } = require("@octokit/webhooks");
 const { defaultsDeep } = require("lodash");
 const Joi = require("joi");
-const { Classifier } = require("./classifier");
+const { ClassifierFactory } = require("./classifier");
 const github = require("./github");
 const config = require("./config");
 const telemetry = require("./telemetry");
@@ -47,7 +47,10 @@ Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
 module.exports = async function App() {
   const app = express();
-  const classifier = await Classifier.ofRemoteUri(config.FASTTEXT_MODEL_URI);
+  const classifierFactory = new ClassifierFactory({ config });
+  const classifier = await classifierFactory.createClassifierFromRemote({
+    modelUri: config.FASTTEXT_MODEL_URI,
+  });
 
   app.get("/status", (req, res) =>
     res.status(200).send({ message: "ticket-tagger lives!" })
@@ -63,7 +66,7 @@ module.exports = async function App() {
     const { installation, repository, issue } = payload;
 
     /* get installation permissions */
-    const permissions = await github.getInstallationPermissions({ 
+    const permissions = await github.getInstallationPermissions({
       installation,
       repository,
     });
