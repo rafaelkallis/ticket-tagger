@@ -15,7 +15,7 @@ Visit our [GitHub App](https://github.com/apps/ticket-tagger) and install.
 
 ### License
 
-Starting with version 3, Ticket Tagger is licensed under the GNU Affero General Public License. Every file should include a license header, if not, the following applies:
+Ticket Tagger is licensed under the GNU Affero General Public License. Every file should include a license header, if not, the following applies:
 
 ```
 Ticket Tagger automatically predicts and labels issue types.
@@ -38,8 +38,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Carefully read the [full license agreement](https://www.gnu.org/licenses/agpl-3.0.en.html).
 
 > "... [The AGPL-3.0 license] requires the operator of a network server to provide the source code of the modified version running there to the users of that server."
-
-Ticket Tagger versions 2 and 1 where published under the GNU General Public License.
 
 ### Derivative Work
 - [BEE](https://github.com/sea-lab-wm/bee-tool), Yang Song and Oscar Chaparro
