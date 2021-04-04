@@ -1,8 +1,8 @@
 {
   "name": "tickettagger",
-  "version": "2.2.0",
+  "version": "3.0.0-beta.0",
   "description": "Machine learning driven issue classification bot.",
-  "license": "GPL-3.0",
+  "license": "AGPL-3.0",
   "repository": {
     "type": "git",
     "url": "git://github.com/rafaelkallis/ticket-tagger.git"
