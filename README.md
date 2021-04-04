@@ -3,6 +3,7 @@
 Machine learning driven issue classification bot.
 [Add to your repository now!](https://github.com/apps/ticket-tagger/installations/new)
 
+![AGPL](https://www.gnu.org/graphics/agplv3-88x31.png)
 ![Build](https://github.com/rafaelkallis/ticket-tagger/workflows/Continuous%20Integration/badge.svg)
 
 ![use ticket tagger](https://thumbs.gfycat.com/GreedyBrownHochstettersfrog-size_restricted.gif)
