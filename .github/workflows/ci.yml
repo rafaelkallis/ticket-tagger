@@ -26,16 +26,29 @@ jobs:
         echo "::set-output name=version::$(curl --head '${{ env.model_uri }}' --silent | grep -oP 'ETag: \K0x[0-9A-Fa-f]+')"
     - name: Cache model
       uses: actions/cache@v2
+      id: cache-model
       with:
         path: ~/.tickettagger/models
-        key: ttmodels-${{ steps.get-latest-model-version.outputs.version }}
-        
+        key: model-${{ steps.get-latest-model-version.outputs.version }}
+        restore-keys: |
+          model-
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
         
+    - name: Cache node_modules
+      uses: actions/cache@v2
+      id: cache-node_modules
+      with:
+        path: node_modules
+        key: node_modules-${{ matrix.ubuntu-version }}-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          node_modules-${{ matrix.ubuntu-version }}-${{ matrix.node-version }}-
+          node_modules-${{ matrix.ubuntu-version }}-
+          node_modules-
     - name: Install
+      if: steps.cache-node_modules.outputs.cache-hit != 'true'
       run: npm ci
     - name: Test
       run: npm test
