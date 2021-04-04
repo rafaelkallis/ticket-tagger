@@ -23,10 +23,27 @@
 
 const express = require("express");
 const { Webhooks } = require("@octokit/webhooks");
+const { defaultsDeep } = require("lodash");
+const Joi = require("joi");
 const { Classifier } = require("./classifier");
 const github = require("./github");
 const config = require("./config");
 const telemetry = require("./telemetry");
+const { repositoryConfigSchema } = require("./schemata");
+
+const repositoryConfigDefaults = {
+  version: 3,
+  labels: Object.fromEntries(
+    ["bug", "enhancement", "question"].map((label) => [
+      label,
+      {
+        enabled: true,
+        text: label,
+      },
+    ])
+  ),
+};
+Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
 module.exports = async function App() {
   const app = express();
@@ -41,32 +58,51 @@ module.exports = async function App() {
     path: "/webhook",
   });
 
-  webhooks.on("issues.opened", async ({ payload }) => {
-    /* extract relevant issue metadata */
-    const { title, labels, body, url } = payload.issue;
+  webhooks.on("issues.opened", handleIssueOpened);
+  async function handleIssueOpened({ payload }) {
+    const { installation, repository, issue } = payload;
+
+    /* get installation permissions */
+    const permissions = await github.getInstallationPermissions({ 
+      installation,
+      repository,
+    });
+
+    /* abort if no issue issue permission */
+    if (!permissions.canWrite("issues")) return;
+
+    const repositoryClient = await github.createRepositoryClient({
+      installation,
+      repository,
+    });
+
+    let repositoryConfig = {};
+    if (permissions.canRead("single_file")) {
+      repositoryConfig = await repositoryClient.getRepositoryConfig();
+    }
+    defaultsDeep(repositoryConfig, repositoryConfigDefaults);
 
     /* predict label */
-    const [prediction, similarity] = await classifier.predict(
-      `${title} ${body}`
+    const [predictedLabelKey, similarity] = await classifier.predict(
+      `${issue.title} ${issue.body}`
     );
 
+    const label = repositoryConfig.labels[predictedLabelKey];
+
     if (similarity > 0) {
-      /* extract installation id */
-      const installationId = payload.installation.id;
-
-      /* get access token for repository */
-      const accessToken = await github.getAccessToken({ installationId });
-
-      /* update label */
-      await github.setLabels({
-        labels: [...labels, prediction],
-        issue: url,
-        accessToken,
-      });
+      if (label.enabled) {
+        /* update label */
+        await repositoryClient.setIssueLabels({
+          issue: issue.number,
+          labels: [...issue.labels, label.text],
+        });
+      }
 
       telemetry.event("Classified");
     }
-  });
+
+    await repositoryClient.revokeAccessToken();
+  }
 
   webhooks.on("installation.created", async () => {
     telemetry.event("Installed");

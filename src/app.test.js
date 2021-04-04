@@ -29,18 +29,56 @@ const request = require("supertest");
 const App = require("./app");
 const config = require("./config");
 
+const requestDelayMilliseconds = 100;
+
 describe("app integration test", () => {
   let app;
+  let installationAccessToken;
+  let getInstallationPermissionsScope;
+  let getInstallationPermissionResult;
+  let createRepositoryAccessTokenScope;
+  let createRepositoryAccessTokenResult;
+  let getRepositoryConfigScope;
+  let getRepositoryConfigResult;
+  let setLabelsScope;
+  let setLabelsResult;
+  let revokeAccessTokenScope;
+  let revokeAccessTokenResult;
   let signatureSha1;
   let signatureSha256;
-  let getAccessTokenScope;
-  let setLabelsScope;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await App();
+  });
 
-    getAccessTokenScope = nock(`https://api.github.com`)
-      .post(`/app/installations/${payload.installation.id}/access_tokens`)
+  beforeEach(() => {
+    installationAccessToken = `access-token-${Date.now()}`;
+
+    getInstallationPermissionsScope = nock(`https://api.github.com`)
+      .get(`/app/installations/${payload.installation.id}`)
+      .matchHeader(
+        "Authorization",
+        /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/
+      )
+      .matchHeader("User-Agent", "Ticket-Tagger")
+      .matchHeader("Accept", "application/vnd.github.v3+json")
+      .delay(requestDelayMilliseconds)
+      .reply(() => getInstallationPermissionResult);
+    getInstallationPermissionResult = [
+      200,
+      {
+        permissions: {
+          metadata: "read",
+          issues: "write",
+          single_file: "write",
+        },
+      },
+    ];
+
+    createRepositoryAccessTokenScope = nock(`https://api.github.com`)
+      .post(`/app/installations/${payload.installation.id}/access_tokens`, {
+        repository_ids: [payload.repository.id],
+      })
       .matchHeader(
         "Authorization",
         /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/
@@ -48,17 +86,42 @@ describe("app integration test", () => {
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Content-Type", "application/json")
       .matchHeader("Accept", "application/vnd.github.v3+json")
-      .delay(500)
-      .reply(200, { token: "installation-access-token" });
+      .delay(requestDelayMilliseconds)
+      .reply(() => createRepositoryAccessTokenResult);
+    createRepositoryAccessTokenResult = [
+      200,
+      { token: installationAccessToken },
+    ];
 
-    setLabelsScope = nock(`https://api.github.com`)
-      .matchHeader("Authorization", "token installation-access-token")
+    getRepositoryConfigScope = nock("https://api.github.com")
+      .get(
+        `/repos/${payload.repository.full_name}/contents/.tickettagger/config.yml`
+      )
+      .matchHeader("Authorization", `token ${installationAccessToken}`)
+      .matchHeader("User-Agent", "Ticket-Tagger")
+      .matchHeader("Accept", "application/vnd.github.v3+json")
+      .delay(requestDelayMilliseconds)
+      .reply(() => getRepositoryConfigResult);
+    getRepositoryConfigResult = [200, { content: "" }];
+
+    setLabelsScope = nock("https://api.github.com")
+      .put(`/repos/${payload.repository.full_name}/issues/62/labels`)
+      .matchHeader("Authorization", `token ${installationAccessToken}`)
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Content-Type", "application/json")
       .matchHeader("Accept", "application/vnd.github.v3+json")
-      .put("/repos/rafaelkallis/throwaway/issues/62/labels")
-      .delay(500)
-      .reply(200);
+      .delay(requestDelayMilliseconds)
+      .reply(() => setLabelsResult);
+    setLabelsResult = [200];
+
+    revokeAccessTokenScope = nock("https://api.github.com")
+      .delete("/app/installation/token")
+      .matchHeader("Authorization", `token ${installationAccessToken}`)
+      .matchHeader("User-Agent", "Ticket-Tagger")
+      .matchHeader("Accept", "application/vnd.github.v3+json")
+      .delay(requestDelayMilliseconds)
+      .reply(() => revokeAccessTokenResult);
+    revokeAccessTokenResult = [204];
 
     signatureSha1 = signPayload({
       payload: JSON.stringify(payload),
@@ -72,7 +135,7 @@ describe("app integration test", () => {
   });
 
   afterEach(async () => {
-    nock.restore();
+    nock.cleanAll();
   });
 
   test("integration", async () => {
@@ -86,11 +149,54 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(200);
 
-    getAccessTokenScope.done();
+    getInstallationPermissionsScope.done();
+    createRepositoryAccessTokenScope.done();
+    getRepositoryConfigScope.done();
     setLabelsScope.done();
+    revokeAccessTokenScope.done();
   });
 
-  test("reject invalid signature", async () => {
+  test("when no issues write permission should not perform any action", async () => {
+    delete getInstallationPermissionResult[1].permissions.issues;
+
+    const response = await request(app)
+      .post("/webhook")
+      .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
+      .set("X-Github-Event", "issues")
+      .set("X-Hub-Signature", signatureSha1)
+      .set("X-Hub-Signature-256", signatureSha256)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+
+    getInstallationPermissionsScope.done();
+    expect(createRepositoryAccessTokenScope.isDone()).toBeFalsy();
+    expect(getRepositoryConfigScope.isDone()).toBeFalsy();
+    expect(setLabelsScope.isDone()).toBeFalsy();
+    expect(revokeAccessTokenScope.isDone()).toBeFalsy();
+  });
+
+  test("when no contents read permission should not get repository config", async () => {
+    delete getInstallationPermissionResult[1].permissions.single_file;
+
+    const response = await request(app)
+      .post("/webhook")
+      .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
+      .set("X-Github-Event", "issues")
+      .set("X-Hub-Signature", signatureSha1)
+      .set("X-Hub-Signature-256", signatureSha256)
+      .send(payload);
+
+    expect(response.status).toBe(200);
+
+    getInstallationPermissionsScope.done();
+    createRepositoryAccessTokenScope.done();
+    expect(getRepositoryConfigScope.isDone()).toBeFalsy();
+    setLabelsScope.done();
+    revokeAccessTokenScope.done();
+  });
+
+  test("when signature is invalid should reject", async () => {
     const response = await request(app)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
@@ -100,6 +206,12 @@ describe("app integration test", () => {
       .send(payload);
 
     expect(response.status).toBe(400);
+
+    expect(getInstallationPermissionsScope.isDone()).toBeFalsy();
+    expect(createRepositoryAccessTokenScope.isDone()).toBeFalsy();
+    expect(getRepositoryConfigScope.isDone()).toBeFalsy();
+    expect(setLabelsScope.isDone()).toBeFalsy();
+    expect(revokeAccessTokenScope.isDone()).toBeFalsy();
   });
 });
 

@@ -52,6 +52,7 @@ const config = envalid.cleanEnv(process.env, {
   MODEL_DIR: envalid.str({
     default: path.join(os.tmpdir(), "ticket-tagger", "models"),
   }),
+  CONFIG_FILE_PATH: envalid.str({ default: ".tickettagger/config.yml" }),
 });
 
 fs.mkdirSync(config.DATASET_DIR, { recursive: true });
