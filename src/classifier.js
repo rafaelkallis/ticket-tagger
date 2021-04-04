@@ -21,15 +21,15 @@
 
 "use strict";
 
-const os = require("os");
 const path = require("path");
 const { promisify } = require("util");
 const fs = require("fs");
 const pipeline = promisify(require("stream").pipeline);
 const fasttext = require("fasttext");
 const fetch = require("node-fetch");
+const config = require("./config");
 
-exports.Classifier = class Classifier {
+class Classifier {
   constructor(modelFilepath) {
     this.fasttextClassifier = new fasttext.Classifier(modelFilepath);
   }
@@ -49,38 +49,60 @@ exports.Classifier = class Classifier {
     const { label, value } = prediction;
     return [label.substring(9), value];
   }
+}
 
-  static async ofRemoteUri(modelUri) {
+class ClassifierFactory {
+  constructor({ config }) {
+    this.config = config;
+  }
+
+  async createClassifierFromRemote({ modelUri }) {
     console.info("checking latest model");
-    const latestModelVersion = await fetchLatestModelVersion();
+    const latestModelVersion = await this._fetchLatestVersion({
+      uri: modelUri,
+    });
     console.info(`latest model version: ${latestModelVersion}`);
-    const modelFilepath = path.join(os.tmpdir(), `${latestModelVersion}.bin`);
-    if (await latestModelExistsLocally()) {
+    const modelPath = path.join(
+      this.config.MODEL_DIR,
+      `${latestModelVersion}.bin`
+    );
+    if (await this._existsLocally({ path: modelPath })) {
       console.info("latest model found locally");
     } else {
       console.info("latest model not found locally");
-      await fetchLatestModel();
+      await this._fetchLatestModel({ modelUri, modelPath });
     }
-    return new Classifier(modelFilepath);
-
-    async function fetchLatestModelVersion() {
-      const response = await fetch(modelUri, { method: "HEAD" });
-      const modelId = response.headers.get("ETag");
-      if (!modelId) {
-        throw new Error('no "ETag" header found');
-      }
-      return modelId;
-    }
-    async function latestModelExistsLocally() {
-      return fs.promises
-        .access(modelFilepath)
-        .then(() => true)
-        .catch(() => false);
-    }
-    async function fetchLatestModel() {
-      console.info("fetching latest model");
-      const response = await fetch(modelUri);
-      await pipeline(response.body, fs.createWriteStream(modelFilepath));
-    }
+    return this.createClassifierFromLocal({ modelPath });
   }
-};
+
+  async createClassifierFromLocal({ modelPath }) {
+    if (!(await this._existsLocally({ path: modelPath }))) {
+      throw new Error(`File ${modelPath} does not exist.`);
+    }
+    return new Classifier(modelPath);
+  }
+
+  async _existsLocally({ path }) {
+    return fs.promises
+      .access(path, fs.constants.R_OK | fs.constants.W_OK)
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  async _fetchLatestVersion({ uri }) {
+    const response = await fetch(uri, { method: "HEAD" });
+    const modelId = response.headers.get("ETag");
+    if (!modelId) {
+      throw new Error('no "ETag" header found');
+    }
+    return modelId;
+  }
+
+  async _fetchLatestModel({ modelUri, modelPath }) {
+    console.info("fetching latest model");
+    const response = await fetch(modelUri);
+    await pipeline(response.body, fs.createWriteStream(modelPath));
+  }
+}
+
+module.exports = { Classifier, ClassifierFactory };

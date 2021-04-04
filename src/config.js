@@ -47,10 +47,10 @@ const config = envalid.cleanEnv(process.env, {
   }),
   APPINSIGHTS_INSTRUMENTATIONKEY: envalid.str({ devDefault: "" }),
   DATASET_DIR: envalid.str({
-    default: path.join(os.tmpdir(), "ticket-tagger", "datasets"),
+    default: path.join(os.homedir(), ".tickettagger/datasets"),
   }),
   MODEL_DIR: envalid.str({
-    default: path.join(os.tmpdir(), "ticket-tagger", "models"),
+    default: path.join(os.homedir(), ".tickettagger/models"),
   }),
   CONFIG_FILE_PATH: envalid.str({ default: ".tickettagger/config.yml" }),
 });
