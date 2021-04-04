@@ -22,7 +22,7 @@
 "use strict";
 
 const express = require("express");
-const { Webhooks } = require("@octokit/webhooks");
+const { Webhooks, createNodeMiddleware } = require("@octokit/webhooks");
 const { defaultsDeep } = require("lodash");
 const Joi = require("joi");
 const { ClassifierFactory } = require("./classifier");
@@ -56,10 +56,7 @@ module.exports = async function App() {
     res.status(200).send({ message: "ticket-tagger lives!" })
   );
 
-  const webhooks = new Webhooks({
-    secret: config.GITHUB_SECRET,
-    path: "/webhook",
-  });
+  const webhooks = new Webhooks({ secret: config.GITHUB_SECRET });
 
   webhooks.on("issues.opened", handleIssueOpened);
   async function handleIssueOpened({ payload }) {
@@ -110,7 +107,7 @@ module.exports = async function App() {
   webhooks.on("installation.created", async () => {
     telemetry.event("Installed");
   });
-  app.use(webhooks.middleware);
+  app.use(createNodeMiddleware(webhooks, { path: "/webhook" }));
 
   return app;
 };
