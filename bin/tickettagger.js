@@ -118,7 +118,7 @@ const filterHyperparameters = (opts) =>
 
 console.log(
   chalk.magenta(
-    `tickettagger, Copyright (C) ${new Date().getFullYear()} Rafael Kallis, GPL-v3 license\n`
+    `tickettagger, Copyright (C) 2018-${new Date().getFullYear()} Rafael Kallis, AGPL-v3 license\n`
   )
 );
 
