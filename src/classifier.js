@@ -27,7 +27,6 @@ const fs = require("fs");
 const pipeline = promisify(require("stream").pipeline);
 const fasttext = require("fasttext");
 const fetch = require("node-fetch");
-const config = require("./config");
 
 class Classifier {
   constructor(modelFilepath) {
