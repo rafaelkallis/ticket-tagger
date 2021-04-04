@@ -15,11 +15,26 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2      
+      uses: actions/checkout@v2
+      
+    - name: Get latest model version
+      id: get-latest-model-version
+      shell: bash
+      env:
+        model_uri: https://tickettagger.blob.core.windows.net/models/model.bin
+      run: |
+        echo "::set-output name=version::$(curl --head '${{ env.model_uri }}' --silent | grep -oP 'ETag: \K0x[0-9A-Fa-f]+')"
+    - name: Cache model
+      uses: actions/cache@v2
+      with:
+        path: ~/.tickettagger/models
+        key: ttmodels-${{ steps.get-latest-model-version.outputs.version }}
+        
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
+        
     - name: Install
       run: npm ci
     - name: Test
