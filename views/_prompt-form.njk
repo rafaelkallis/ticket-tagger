@@ -1,0 +1,17 @@
+{% extends "_prompt.njk" %}
+
+{% block prompt %}
+{# <h4 class="mt-3">{{ title }}</h4>
+<div id="timeout-alert" class="alert alert-danger" role="alert" style="display: none">
+  Session timeout, please try again.
+</div> #}
+{% block beforeForm %}{% endblock %}
+<form action="{{ form.action }}" method="{{ default(form.method, "post") }}">
+  {% block form %}{% endblock %}
+</form>
+{% block afterForm %}{% endblock %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% endblock %}

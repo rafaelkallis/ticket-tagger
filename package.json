@@ -46,6 +46,9 @@
     "lodash": "4.17.21",
     "ml-confusion-matrix": "0.4.0",
     "node-fetch": "2.6.1",
+    "nunjucks": "3.2.3",
+    "passport": "0.4.1",
+    "passport-github": "1.1.0",
     "yaml": "1.10.2",
     "yargs": "16.2.0"
   },

@@ -21,10 +21,14 @@
 
 "use strict";
 
+const path = require("path");
 const express = require("express");
+const passport = require("passport");
+const { Strategy: GitHubStrategy } = require("passport-github");
 const { Webhooks, createNodeMiddleware } = require("@octokit/webhooks");
 const { defaultsDeep } = require("lodash");
 const Joi = require("joi");
+const nunjucks = require("nunjucks");
 const { ClassifierFactory } = require("./classifier");
 const github = require("./github");
 const config = require("./config");
@@ -46,11 +50,25 @@ const repositoryConfigDefaults = {
 Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
 module.exports = async function App() {
-  const app = express();
   const classifierFactory = new ClassifierFactory({ config });
   const classifier = await classifierFactory.createClassifierFromRemote({
     modelUri: config.FASTTEXT_MODEL_URI,
   });
+
+  const app = express();
+
+  // https://mozilla.github.io/nunjucks/getting-started.html
+  nunjucks.configure(path.resolve(__dirname, "../views"), {
+    autoescape: true,
+    express: app,
+  });
+  app.set("view engine", "njk");
+
+  // https://expressjs.com/en/guide/behind-proxies.html
+  app.set("trust proxy", true);
+
+  // https://expressjs.com/en/starter/static-files.html
+  app.use(express.static(path.resolve(__dirname, "../dist")));
 
   app.get("/status", (req, res) =>
     res.status(200).send({ message: "ticket-tagger lives!" })
@@ -108,6 +126,29 @@ module.exports = async function App() {
     telemetry.event("Installed");
   });
   app.use(createNodeMiddleware(webhooks, { path: "/webhook" }));
+
+  passport.use(
+    new GitHubStrategy(
+      {
+        clientID: config.GITHUB_CLIENT_ID,
+        clientSecret: config.GITHUB_CLIENT_SECRET,
+        callbackURL: "",
+      },
+      (accessToken, refreshToken, profile, cb) => {}
+    )
+  );
+
+  app.get("/auth/callback", (req, res) =>
+    res.render("config", { ...req.params })
+  );
+
+  app.get("/:owner/:repo", (req, res) =>
+    res.render("config", { ...req.params })
+  );
+
+  app.use(express.urlencoded());
+
+  app.post("/:owner/:repo", () => {});
 
   return app;
 };

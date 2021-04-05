@@ -1,0 +1,33 @@
+{% extends "_base.njk" %}
+
+{% block body %}
+{# <section class="page-header-section ptb-100 bg-image full-height" image-overlay="8">
+  <div class="background-image-wraper" style="background: url('/img/background.svg'); opacity: 1;"></div>
+    <div class="container">
+      <div class="row align-items-center justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+          <div class="login-signup-wrap p-5 gray-light-bg rounded shadow">
+            <div class="login-signup-header text-center">
+              <a href="index.html">
+                <img src="/img/covee-logo-light.svg" class="img-fluid mb-3" width="125" alt="Logo">
+              </a>
+            </div> #}
+            {% block prompt %}{% endblock %}
+          {# </div>
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+          <div class="copyright-wrap small-text text-center mt-5 text-white">
+            <p class="mb-0">&copy; Covee Network AG</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section> #}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% endblock %}
