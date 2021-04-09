@@ -15,35 +15,24 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file index
+ * @file User
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
 "use strict";
 
-const appInsights = require("applicationinsights");
-const config = require("./config");
-const telemetry = require("./telemetry");
+const mongoose = require("mongoose");
 
-if (config.isDevelopment) {
-  telemetry.attachConsole();
-}
+const userSchema = new mongoose.Schema({
+  login: { type: String, required: true, index: { unique: true } },
+  email: { type: String, required: true }, // TODO encrypt
+  name: { type: String, required: true }, // TODO encrypt
+  accessToken: { type: String }, // TODO encrypt
+  loginAt: { type: Number, required: true },
+  createdAt: { type: Number, required: true },
+  updatedAt: { type: Number, required: true },
+});
 
-if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
-  appInsights
-    .setup(config.APPINSIGHTS_INSTRUMENTATIONKEY)
-    .setSendLiveMetrics(true)
-    .start();
-  telemetry.attachAppInsights();
-}
+const User = mongoose.model("User", userSchema);
 
-const { App } = require("./App");
-
-const app = new App({ config });
-
-// for (const signal of ["SIGINT", "SIGTERM"]) {
-//   process.once(signal, () => app.stop());
-// }
-process.once("beforeExit", () => app.stop());
-
-app.start();
+module.exports = { User };

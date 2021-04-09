@@ -15,23 +15,16 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file app.js
+ * @file webhook app
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
 "use strict";
 
-const path = require("path");
 const express = require("express");
-const passport = require("passport");
-const { Strategy: GitHubStrategy } = require("passport-github");
 const { Webhooks, createNodeMiddleware } = require("@octokit/webhooks");
 const { defaultsDeep } = require("lodash");
 const Joi = require("joi");
-const nunjucks = require("nunjucks");
-const { ClassifierFactory } = require("./classifier");
-const github = require("./github");
-const config = require("./config");
 const telemetry = require("./telemetry");
 const { repositoryConfigSchema } = require("./schemata");
 
@@ -49,31 +42,7 @@ const repositoryConfigDefaults = {
 };
 Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
-module.exports = async function App() {
-  const classifierFactory = new ClassifierFactory({ config });
-  const classifier = await classifierFactory.createClassifierFromRemote({
-    modelUri: config.FASTTEXT_MODEL_URI,
-  });
-
-  const app = express();
-
-  // https://mozilla.github.io/nunjucks/getting-started.html
-  nunjucks.configure(path.resolve(__dirname, "../views"), {
-    autoescape: true,
-    express: app,
-  });
-  app.set("view engine", "njk");
-
-  // https://expressjs.com/en/guide/behind-proxies.html
-  app.set("trust proxy", true);
-
-  // https://expressjs.com/en/starter/static-files.html
-  app.use(express.static(path.resolve(__dirname, "../dist")));
-
-  app.get("/status", (req, res) =>
-    res.status(200).send({ message: "ticket-tagger lives!" })
-  );
-
+function WebhookApp({ config, classifier, appClient }) {
   const webhooks = new Webhooks({ secret: config.GITHUB_SECRET });
 
   webhooks.on("issues.opened", handleIssueOpened);
@@ -81,7 +50,7 @@ module.exports = async function App() {
     const { installation, repository, issue } = payload;
 
     /* get installation permissions */
-    const permissions = await github.getInstallationPermissions({
+    const permissions = await appClient.getInstallationPermissions({
       installation,
       repository,
     });
@@ -89,7 +58,7 @@ module.exports = async function App() {
     /* abort if no issue issue permission */
     if (!permissions.canWrite("issues")) return;
 
-    const repositoryClient = await github.createRepositoryClient({
+    const repositoryClient = await appClient.createRepositoryClient({
       installation,
       repository,
     });
@@ -125,30 +94,12 @@ module.exports = async function App() {
   webhooks.on("installation.created", async () => {
     telemetry.event("Installed");
   });
+
+  const app = express();
+
   app.use(createNodeMiddleware(webhooks, { path: "/webhook" }));
 
-  passport.use(
-    new GitHubStrategy(
-      {
-        clientID: config.GITHUB_CLIENT_ID,
-        clientSecret: config.GITHUB_CLIENT_SECRET,
-        callbackURL: "",
-      },
-      (accessToken, refreshToken, profile, cb) => {}
-    )
-  );
-
-  app.get("/auth/callback", (req, res) =>
-    res.render("config", { ...req.params })
-  );
-
-  app.get("/:owner/:repo", (req, res) =>
-    res.render("config", { ...req.params })
-  );
-
-  app.use(express.urlencoded());
-
-  app.post("/:owner/:repo", () => {});
-
   return app;
-};
+}
+
+module.exports = { WebhookApp };

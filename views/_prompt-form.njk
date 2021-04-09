@@ -6,7 +6,7 @@
   Session timeout, please try again.
 </div> #}
 {% block beforeForm %}{% endblock %}
-<form action="{{ form.action }}" method="{{ default(form.method, "post") }}">
+<form action="{{ form.action }}" method="{{ form.method | default("post") }}">
   {% block form %}{% endblock %}
 </form>
 {% block afterForm %}{% endblock %}

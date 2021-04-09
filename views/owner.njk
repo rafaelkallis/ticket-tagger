@@ -1,0 +1,21 @@
+{% extends "_prompt.njk" %}
+
+{% block prompt %}
+<div>installations</div>
+<ul>
+{% for installation in installations %}
+<li>
+  <a href="/{{ installation.account.login }}">{{ installation.account.login }}</a>
+</li>
+{% endfor %}
+</ul>
+
+<div>repositories</div>
+<ul>
+  {% for repository in repositories %}
+  <li>
+    <a href="/{{ repository.full_name  }}">{{ repository.full_name }}</a>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

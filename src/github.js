@@ -21,28 +21,158 @@
 
 "use strict";
 
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const fetch = require("node-fetch");
 const yaml = require("yaml");
-const config = require("./config");
 const { repositoryConfigSchema } = require("./schemata");
+const { CacheRecord } = require("./entities/CacheRecord");
 
-const baseUrl = "https://api.github.com";
-
-class GitHubAppClient {
+class GitHubClient {
   constructor({ config }) {
     this.config = config;
+    this.baseUrl = "https://api.github.com";
   }
 
+  _url(path) {
+    return this.baseUrl + path;
+  }
+
+  _headers(headers = {}) {
+    return {
+      "User-Agent": "Ticket-Tagger",
+      Accept: "application/vnd.github.v3+json",
+      ...headers,
+    };
+  }
+
+  /**
+   * Uses conditional requests for improved rate limits.
+   * @see https://docs.github.com/en/rest/guides/getting-started-with-the-rest-api#conditional-requests
+   */
+  async _fetchJsonConditional(url, options) {
+    const cacheKey = crypto
+      .createHash("md5")
+      .update("github")
+      .update(url)
+      .update(options.headers.Authorization || "public")
+      .digest("hex");
+    let cacheRecord = await CacheRecord.findOne({ key: cacheKey });
+    if (cacheRecord) {
+      options.headers["If-None-Match"] = cacheRecord.etag;
+    }
+    const response = await fetch(url, options);
+    if (response.status === 304) {
+      return cacheRecord.payload;
+    }
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const etag = response.headers.get("ETag");
+    const payload = await response.json();
+    if (!cacheRecord) {
+      cacheRecord = new CacheRecord({ key: cacheKey });
+    }
+    cacheRecord.etag = etag;
+    cacheRecord.payload = payload;
+    await cacheRecord.save();
+    return payload;
+  }
+}
+
+class GitHubOAuthClient extends GitHubClient {
+  constructor({ config, accessToken }) {
+    super({ config });
+    this.accessToken = accessToken;
+  }
+
+  /**
+   * @see https://docs.github.com/en/rest/reference/apps#check-a-token
+   */
+  async checkToken() {
+    const url = this._url(
+      `/applications/${this.config.GITHUB_CLIENT_ID}/token`
+    );
+    const response = await fetch(url, {
+      method: "POST",
+      headers: this._headersWithClientSecretBasicAuth({
+        "Content-Type": "application/json",
+      }),
+      body: JSON.stringify({ access_token: this.accessToken }),
+    });
+    if (!response.ok) {
+      return false;
+    }
+    const { user } = await response.json();
+    return user;
+  }
+
+  /**
+   * @see https://docs.github.com/en/rest/reference/users#get-the-authenticated-user
+   */
+  async getUser() {
+    const url = this._url("/user");
+    return await this._fetchJsonConditional(url, { headers: this._headers() });
+  }
+
+  /**
+   * @see https://docs.github.com/en/rest/reference/repos#get-a-repository
+   */
+  async getRepository({ owner, repo }) {
+    const url = this._url(`/repos/${owner}/${repo}`);
+    return await this._fetchJsonConditional(url, { headers: this._headers() });
+  }
+
+  /**
+   * @see https://docs.github.com/en/rest/reference/apps#list-app-installations-accessible-to-the-user-access-token
+   */
+  async listInstallations() {
+    const url = this._url("/user/installations");
+    const { installations } = await this._fetchJsonConditional(url, {
+      headers: this._headers(),
+    });
+    return installations;
+  }
+
+  /**
+   * @see https://docs.github.com/en/rest/reference/apps#list-repositories-accessible-to-the-user-access-token
+   */
+  async listRepositoriesByInstallationId({ installationId }) {
+    const url = this._url(`/user/installations/${installationId}/repositories`);
+    const { repositories } = await this._fetchJsonConditional(url, {
+      headers: this._headers(),
+    });
+    return repositories;
+  }
+
+  _headers(headers = {}) {
+    return super._headers({
+      Authorization: `token ${this.accessToken}`,
+      ...headers,
+    });
+  }
+
+  _headersWithClientSecretBasicAuth(headers = {}) {
+    const basicAuthToken = Buffer.from(
+      `${this.config.GITHUB_CLIENT_ID}:${this.config.GITHUB_CLIENT_SECRET}`
+    ).toString("base64");
+    return this._headers({
+      Authorization: `Basic ${basicAuthToken}`,
+      ...headers,
+    });
+  }
+}
+
+class GitHubAppClient extends GitHubClient {
   async createRepositoryClient({ installation, repository }) {
-    const installationAccessToken = await this.createRepositoryAccessToken({
+    const accessToken = await this._createInstallationAccessTokenForRepository({
       installation,
       repository,
     });
     return new GitHubRepositoryClient({
       config: this.config,
       repository,
-      installationAccessToken,
+      accessToken,
     });
   }
 
@@ -51,15 +181,8 @@ class GitHubAppClient {
    * @see https://docs.github.com/en/rest/reference/apps#get-an-installation-for-the-authenticated-app
    */
   async getInstallationPermissions({ installation }) {
-    const url = `${baseUrl}/app/installations/${installation.id}`;
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${this.createAppAccessToken()}`,
-        "User-Agent": "Ticket-Tagger",
-        Accept: "application/vnd.github.v3+json",
-      },
-    });
+    const url = this._url(`/app/installations/${installation.id}`);
+    const response = await fetch(url, { headers: this._headers() });
     const { permissions } = await response.json();
     return {
       raw: permissions,
@@ -76,20 +199,27 @@ class GitHubAppClient {
    * Create an installation access token for a repository.
    * @see https://docs.github.com/en/rest/reference/apps#create-an-installation-access-token-for-an-app
    */
-  async createRepositoryAccessToken({ installation, repository }) {
-    const url = `${baseUrl}/app/installations/${installation.id}/access_tokens`;
+  async _createInstallationAccessTokenForRepository({
+    installation,
+    repository,
+  }) {
+    const url = this._url(
+      `/app/installations/${installation.id}/access_tokens`
+    );
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.createAppAccessToken()}`,
-        "User-Agent": "Ticket-Tagger",
-        "Content-Type": "application/json",
-        Accept: "application/vnd.github.v3+json",
-      },
+      headers: this._headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({ repository_ids: [repository.id] }),
     });
     const body = await response.json();
     return body.token;
+  }
+
+  _headers(headers = {}) {
+    return super._headers({
+      Authorization: `Bearer ${this._createAppAccessToken()}`,
+      ...headers,
+    });
   }
 
   /**
@@ -99,7 +229,7 @@ class GitHubAppClient {
    *
    * @returns {String} A ticket-tagger JWT
    */
-  createAppAccessToken() {
+  _createAppAccessToken() {
     const iat = (Date.now() / 1000) | 0;
     const exp = iat + 30;
     const iss = this.config.GITHUB_APP_ID;
@@ -109,11 +239,34 @@ class GitHubAppClient {
   }
 }
 
-class GitHubRepositoryClient {
-  constructor({ config, repository, installationAccessToken }) {
-    this.config = config;
+class GitHubInstallationClient extends GitHubClient {
+  constructor({ config, installation, accessToken }) {
+    super({ config });
+    this.installation = installation;
+    this.accessToken = accessToken;
+  }
+
+  async revokeAccessToken() {
+    const url = this._url("/app/installation/token");
+    await fetch(url, { method: "DELETE", headers: this._headers() });
+  }
+
+  async _headers(headers = {}) {
+    return super._headers({
+      ...headers,
+      Authorization: `token ${this.accessToken}`,
+    });
+  }
+}
+
+class GitHubRepositoryClient extends GitHubInstallationClient {
+  constructor({ config, installation, repository, accessToken }) {
+    super({ config, installation, accessToken });
     this.repository = repository;
-    this.installationAccessToken = installationAccessToken;
+  }
+
+  async _url(url) {
+    return this.repository.url + url;
   }
 
   /**
@@ -121,15 +274,10 @@ class GitHubRepositoryClient {
    * @see https://docs.github.com/en/rest/reference/issues#update-an-issue
    */
   async setIssueLabels({ issue, labels }) {
-    const url = `${this.repository.url}/issues/${issue}/labels`;
+    const url = this._url(`/issues/${issue}/labels`);
     return await fetch(url, {
       method: "PUT",
-      headers: {
-        Authorization: `token ${this.installationAccessToken}`,
-        "User-Agent": "Ticket-Tagger",
-        "Content-Type": "application/json",
-        Accept: "application/vnd.github.v3+json",
-      },
+      headers: this._headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({ labels }),
     });
   }
@@ -139,15 +287,8 @@ class GitHubRepositoryClient {
    * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
    */
   async getRepositoryConfig() {
-    const url = `${this.repository.url}/contents/${this.config.CONFIG_FILE_PATH}`;
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `token ${this.installationAccessToken}`,
-        "User-Agent": "Ticket-Tagger",
-        Accept: "application/vnd.github.v3+json",
-      },
-    });
+    const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
+    const response = await fetch(url, { headers: this._headers() });
     if (!response.ok) {
       return {};
     }
@@ -166,18 +307,6 @@ class GitHubRepositoryClient {
     }
     return repositoryConfig;
   }
-
-  async revokeAccessToken() {
-    const url = `${baseUrl}/app/installation/token`;
-    await fetch(url, {
-      method: "DELETE",
-      headers: {
-        Authorization: `token ${this.installationAccessToken}`,
-        "User-Agent": "Ticket-Tagger",
-        Accept: "application/vnd.github.v3+json",
-      },
-    });
-  }
 }
 
-module.exports = new GitHubAppClient({ config });
+module.exports = { GitHubOAuthClient, GitHubAppClient };

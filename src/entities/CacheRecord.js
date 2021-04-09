@@ -15,35 +15,21 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file index
+ * @file cache record
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
 "use strict";
 
-const appInsights = require("applicationinsights");
-const config = require("./config");
-const telemetry = require("./telemetry");
+const mongoose = require("mongoose");
 
-if (config.isDevelopment) {
-  telemetry.attachConsole();
-}
+const cacheRecordSchema = new mongoose.Schema({
+  key: { type: String, required: true, index: { unique: true } },
+  etag: { type: String, required: true },
+  payload: { type: Object, required: true }, // TODO encrypt
+  _ts: { type: Date, expires: "1h" }, // cosmos db ttl
+});
 
-if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
-  appInsights
-    .setup(config.APPINSIGHTS_INSTRUMENTATIONKEY)
-    .setSendLiveMetrics(true)
-    .start();
-  telemetry.attachAppInsights();
-}
+const CacheRecord = mongoose.model("CacheRecord", cacheRecordSchema);
 
-const { App } = require("./App");
-
-const app = new App({ config });
-
-// for (const signal of ["SIGINT", "SIGTERM"]) {
-//   process.once(signal, () => app.stop());
-// }
-process.once("beforeExit", () => app.stop());
-
-app.start();
+module.exports = { CacheRecord };

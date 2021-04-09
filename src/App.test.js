@@ -26,8 +26,8 @@ jest.setTimeout(5 * 60 * 1000);
 const crypto = require("crypto");
 const nock = require("nock");
 const request = require("supertest");
-const App = require("./app");
 const config = require("./config");
+const { App } = require("./App");
 
 const requestDelayMilliseconds = 100;
 
@@ -48,7 +48,8 @@ describe("app integration test", () => {
   let signatureSha256;
 
   beforeAll(async () => {
-    app = await App();
+    app = new App({ config });
+    await app.start();
   });
 
   beforeEach(() => {
@@ -138,8 +139,12 @@ describe("app integration test", () => {
     nock.cleanAll();
   });
 
+  afterAll(async () => {
+    await app.stop();
+  });
+
   test("integration", async () => {
-    const response = await request(app)
+    const response = await request(app.server)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
@@ -159,7 +164,7 @@ describe("app integration test", () => {
   test("when no issues write permission should not perform any action", async () => {
     delete getInstallationPermissionResult[1].permissions.issues;
 
-    const response = await request(app)
+    const response = await request(app.server)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
@@ -179,7 +184,7 @@ describe("app integration test", () => {
   test("when no contents read permission should not get repository config", async () => {
     delete getInstallationPermissionResult[1].permissions.single_file;
 
-    const response = await request(app)
+    const response = await request(app.server)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
@@ -197,7 +202,7 @@ describe("app integration test", () => {
   });
 
   test("when signature is invalid should reject", async () => {
-    const response = await request(app)
+    const response = await request(app.server)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues.opened")
