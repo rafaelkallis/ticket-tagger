@@ -29,7 +29,6 @@ const { Classifier } = require("./classifier");
 const { GitHubAppClient } = require("./github");
 const { WebApp } = require("./WebApp");
 const { WebhookApp } = require("./WebhookApp");
-const { CacheRecord } = require("./entities/CacheRecord");
 
 function App({ config }) {
   const classifier = Classifier.createFromRemote({

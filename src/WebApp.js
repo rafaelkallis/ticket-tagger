@@ -29,8 +29,13 @@ const mongoose = require("mongoose");
 const { Passport } = require("passport");
 const { Strategy: GitHubStrategy } = require("passport-github");
 const nunjucks = require("nunjucks");
+const nunjucksOcticonsExtension = require("nunjucks-octicons-extension");
+const { defaultsDeep } = require("lodash");
+const YAML = require("yaml");
+const { detailedDiff } = require("deep-object-diff");
 const { User } = require("./entities/User");
-const { GitHubOAuthClient } = require("./github");
+const { GitHubOAuthClient, repositoryConfigDefaults } = require("./github");
+const { repositoryConfigSchema } = require("./schemata");
 
 function WebApp({ config }) {
   const passport = new Passport();
@@ -65,10 +70,12 @@ function WebApp({ config }) {
   const app = express();
 
   // https://mozilla.github.io/nunjucks/getting-started.html
-  nunjucks.configure(path.resolve(__dirname, "../views"), {
+  const nunjucksEnv = nunjucks.configure(path.resolve(__dirname, "../views"), {
     autoescape: true,
     express: app,
   });
+  nunjucksEnv.addExtension("Octicon", nunjucksOcticonsExtension);
+
   app.set("view engine", "njk");
 
   // https://expressjs.com/en/starter/static-files.html
@@ -98,7 +105,7 @@ function WebApp({ config }) {
     })
   );
 
-  app.use(express.urlencoded({ extended: false }));
+  app.use(express.urlencoded({ extended: true }));
 
   app.use(passport.initialize());
   app.use(passport.session());
@@ -110,15 +117,16 @@ function WebApp({ config }) {
         config,
         accessToken: req.user.accessToken,
       });
-      if (!(await githubOAuthClient.checkToken())) {
+      const checkTokenResponse = await githubOAuthClient.checkToken();
+      if (!checkTokenResponse) {
         console.log("revoked access token");
         // access token has been revoked
         req.logout();
         return next();
       }
       req.githubOAuthClient = githubOAuthClient;
-      res.locals.user = await req.githubOAuthClient.getUser();
-      res.locals.installations = await req.githubOAuthClient.listInstallations();
+      res.locals.user = checkTokenResponse.user;
+      res.locals.installations = await githubOAuthClient.listInstallations();
       next();
     })
   );
@@ -136,6 +144,11 @@ function WebApp({ config }) {
   });
 
   app.use(ensureAuthenticated({ config }));
+
+  app.post("/logout", (req, res) => {
+    req.logout();
+    res.redirect("/");
+  });
 
   app.param(
     "owner",
@@ -167,6 +180,13 @@ function WebApp({ config }) {
         owner,
         repo,
       });
+      req.githubRepositoryClient = req.githubOAuthClient.createRepositoryClient(
+        res.locals
+      );
+      res.locals.config = defaultsDeep(
+        await req.githubRepositoryClient.getConfig(),
+        repositoryConfigDefaults
+      );
       next();
     })
   );
@@ -182,6 +202,60 @@ function WebApp({ config }) {
   );
 
   app.get("/:owner/:repo", (req, res) => res.render("repo"));
+
+  app.post(
+    "/:owner/:repo",
+    asyncMiddleware(async (req, res) => {
+      req.body.labels = Object.fromEntries(
+        Object.entries(req.body.labels || {}).map(([key, label]) => [
+          key,
+          { ...label, enabled: Boolean(label.enabled) },
+        ])
+      );
+      console.log(req.body);
+      if (repositoryConfigSchema.validate(req.body).error) {
+        return res.sendStatus(400);
+      }
+      defaultsDeep(req.body, repositoryConfigDefaults);
+      const { added, deleted, updated } = detailedDiff(
+        res.locals.config,
+        req.body
+      );
+      const configYaml = await req.githubRepositoryClient.getConfigYaml();
+      const configDoc = YAML.parseDocument(configYaml);
+
+      console.log("before", configDoc.toJSON());
+
+      traverse(added).forEach(([path, value]) => configDoc.setIn(path, value));
+      traverse(deleted).forEach(([path, value]) =>
+        configDoc.deleteIn(path, value)
+      );
+      traverse(updated).forEach(([path, value]) =>
+        configDoc.setIn(path, value)
+      );
+
+      console.log("after", configDoc.toJSON());
+      res.locals.config = defaultsDeep(
+        configDoc.toJSON(),
+        repositoryConfigDefaults
+      );
+
+      res.render("repo");
+
+      function traverse(value) {
+        return Array.from(traverseInner([], value));
+        function* traverseInner(path, value) {
+          if (typeof value !== "object") {
+            yield [path, value];
+            return;
+          }
+          for (let [childKey, childValue] of Object.entries(value)) {
+            yield* traverseInner([...path, childKey], childValue);
+          }
+        }
+      }
+    })
+  );
 
   return app;
 }

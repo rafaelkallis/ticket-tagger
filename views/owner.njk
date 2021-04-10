@@ -1,21 +1,45 @@
-{% extends "_prompt.njk" %}
+{% extends "_base.njk" %}
 
-{% block prompt %}
-<div>installations</div>
-<ul>
-{% for installation in installations %}
-<li>
-  <a href="/{{ installation.account.login }}">{{ installation.account.login }}</a>
-</li>
-{% endfor %}
-</ul>
-
-<div>repositories</div>
-<ul>
-  {% for repository in repositories %}
-  <li>
-    <a href="/{{ repository.full_name  }}">{{ repository.full_name }}</a>
-  </li>
-  {% endfor %}
-</ul>
-{% endblock %}
+{% block body %}
+<div class="container-md clearfix p-4">
+  {% if repositories | length === 0 %}
+  <div class="blankslate blankslate-spacious">
+    {% octicon "rocket", height= "53", class= "color-icon-info mb-3" %}
+    <h3 class="mb-1">You don't seem to have any repositories added.</h3>
+    <p>Ticket Tagger is an intelligent AI that automatically predicts labels of new issues in your repositories.</p>
+    <button class="btn btn-primary my-3" type="button">Add repository</button>
+    <p><a class="btn-link" href="https://github.com/apps/ticket-tagger">Learn more</a></p>
+  </div>
+  {% else %}
+  <div class="col-12 d-flex width-full py-4 border-bottom color-border-secondary">
+    <div class="width-full"></div>
+    <div class="d-none d-md-flex flex-md-items-center flex-md-justify-end">
+      <a href="https://github.com/settings/installations/{{ installation.id }}" class="text-center btn btn-primary ml-3">
+        {% octicon "repo", height="16" %} Add
+      </a>
+    </div>
+  </div>
+  <ul>
+    {% for repository in repositories %}
+    <li class="col-12 d-flex width-full py-4 border-bottom color-border-secondary">
+      {# <a href="/{{ repository.full_name  }}">{{ repository.full_name }}</a> #}
+      <div class="col-10 col-lg-9 d-inline-block">
+        <div class="d-inline-block mb-1">
+          <h3 class="wb-break-all">
+            <a href="/{{ repository.full_name }}">{{ repository.name }}</a>
+          </h3>
+        </div>
+        {% if repository.description  %}
+        <div>
+          <p class="col-9 d-inline-block color-text-secondary mb-2 pr-4">
+            {{ repository.description }}
+          </p>
+        </div>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endblock %}
+</div>

@@ -38,6 +38,7 @@
     "applicationinsights-native-metrics": "0.0.6",
     "chalk": "4.1.0",
     "connect-mongo": "4.4.1",
+    "deep-object-diff": "1.1.0",
     "dotenv": "8.2.0",
     "envalid": "7.1.0",
     "express": "4.17.1",
@@ -50,9 +51,10 @@
     "mongoose": "5.12.3",
     "node-fetch": "2.6.1",
     "nunjucks": "3.2.3",
+    "nunjucks-octicons-extension": "1.0.1",
     "passport": "0.4.1",
     "passport-github": "1.1.0",
-    "yaml": "1.10.2",
+    "yaml": "2.0.0-4",
     "yargs": "16.2.0"
   },
   "devDependencies": {

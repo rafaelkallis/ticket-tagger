@@ -1,5 +1,73 @@
-{% extends "_prompt.njk" %}
+{% extends "_base.njk" %}
 
-{% block prompt %}
-{{ repository | dump }}
+{% block body %}
+<div class="color-bg-secondary pt-3 hide-full-screen mb-5">
+  <div class="d-flex mb-3 px-3 px-md-4 px-lg-5">
+    <div class="flex-auto min-width-0 width-fit mr-3">
+      <h1 class=" d-flex flex-wrap flex-items-center break-word f3 text-normal">
+        {% octicon "repo", class="color-text-secondary mr-2", width="16" %}
+        <span class="author flex-self-stretch">
+          <a class="url fn" href="/{{ repository.owner.login }}">{{ repository.owner.login }}</a>
+        </span>
+        <span class="mx-1 flex-self-stretch color-text-secondary">/</span>
+        <strong class="mr-2 flex-self-stretch">
+          <a href="/{{ repository.owner.login }}/{{ repository.name }}">{{ repository.name }}</a>
+        </strong>
+      </h1>
+    </div>
+  </div>
+<div class="container-md clearfix p-4">
+  <div class="Subhead Subhead--spacious">
+    <div class="Subhead-heading">General</div>
+  </div>
+  <div class="Subhead Subhead--spacious mb-0 border-bottom-0">
+    <h2 class="Subhead-heading">Labels</h2>
+  </div>
+  <form action="/{{ repository.full_name }}" method="POST">
+    <div class="Box">
+      {# <input type="hidden" name="labels.version" value={{ config}} > #}
+      <ul>
+        {% for label, labelConfig in config.labels %}
+        <li class="Box-row py-0">
+          <div class="form-group">
+            <div class="form-checkbox">
+              <label for="check-label-{{ label }}">{{ label | capitalize }}</label>
+              <input 
+                id="check-label-{{ label }}" 
+                type="checkbox" 
+                name="labels[{{ label }}][enabled]" 
+                {% if labelConfig.enabled %}checked{% endif %} />
+              <span class="status-indicator js-status-indicator">{% octicon "check", width="16" %}</span>
+              <p></p>
+
+              <label class="mr-1" for="text-label-{{ label }}">Custom text</label>
+              <input 
+                id="text-label-{{ label }}"
+                class="form-control input-sm" 
+                type="text" 
+                name="labels[{{ label }}][text]"
+                value="{{ labelConfig.text }}"
+                placeholder="Custom text" 
+                aria-label="Custom text" />
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Save changes</button>
+  </form>
+  <div class="Subhead Subhead--spacious">
+    <div class="Subhead-heading">Profile</div>
+    <div class="Box">
+      <ul>
+        <li class="Box-row"></li>
+        <li class="Box-row"></li>
+        <li class="Box-row"></li>
+      </ul>
+    </div>
+  </div>
+  {# {{ repository | dump | safe }} #}
+  {{ config | dump | safe }}
+</div>
 {% endblock %}

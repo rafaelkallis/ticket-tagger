@@ -24,13 +24,52 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const fetch = require("node-fetch");
-const yaml = require("yaml");
+const YAML = require("yaml");
+const Joi = require("joi");
+const { defaultsDeep } = require("lodash");
 const { repositoryConfigSchema } = require("./schemata");
 const { CacheRecord } = require("./entities/CacheRecord");
 
+const repositoryConfigDefaults = {
+  version: 3,
+  labels: Object.fromEntries(
+    ["bug", "enhancement", "question"].map((label) => [
+      label,
+      {
+        enabled: true,
+        text: label,
+      },
+    ])
+  ),
+};
+Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
+
+class CacheKeyComputer {
+  computeCacheKey({ url, options }) {
+    const hash = crypto.createHash("md5");
+    for (const c of this._getCacheKeyComponents({ url, options })) {
+      hash.update(c);
+    }
+    return hash.digest("hex");
+  }
+
+  *_getCacheKeyComponents({ url }) {
+    yield "github";
+    yield url;
+  }
+}
+
+class AuthorizationCacheKeyComputer extends CacheKeyComputer {
+  *_getCacheKeyComponents({ url, options }) {
+    yield* super._getCacheKeyComponents({ url, options });
+    yield options.headers.Authorization;
+  }
+}
+
 class GitHubClient {
-  constructor({ config }) {
+  constructor({ config, cacheKeyComputer }) {
     this.config = config;
+    this.cacheKeyComputer = cacheKeyComputer;
     this.baseUrl = "https://api.github.com";
   }
 
@@ -51,23 +90,19 @@ class GitHubClient {
    * @see https://docs.github.com/en/rest/guides/getting-started-with-the-rest-api#conditional-requests
    */
   async _fetchJsonConditional(url, options) {
-    const cacheKey = crypto
-      .createHash("md5")
-      .update("github")
-      .update(url)
-      .update(options.headers.Authorization || "public")
-      .digest("hex");
+    const cacheKey = this.cacheKeyComputer.computeCacheKey({ url, options });
     let cacheRecord = await CacheRecord.findOne({ key: cacheKey });
     if (cacheRecord) {
       options.headers["If-None-Match"] = cacheRecord.etag;
     }
     const response = await fetch(url, options);
-    if (response.status === 304) {
-      return cacheRecord.payload;
-    }
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
+    /* cache hit */
+    if (response.status === 304) return cacheRecord.payload;
+
+    /* bad */
+    if (!response.ok) return null;
+
+    /* cache miss */
     const etag = response.headers.get("ETag");
     const payload = await response.json();
     if (!cacheRecord) {
@@ -75,14 +110,19 @@ class GitHubClient {
     }
     cacheRecord.etag = etag;
     cacheRecord.payload = payload;
-    await cacheRecord.save();
+    try {
+      await cacheRecord.save();
+    } catch (e) {
+      console.log(url, cacheRecord.etag, options.headers.Authorization, cacheRecord.key, cacheRecord.id, cacheRecord.isNew);
+      throw e;
+    }
     return payload;
   }
 }
 
 class GitHubOAuthClient extends GitHubClient {
   constructor({ config, accessToken }) {
-    super({ config });
+    super({ config, cacheKeyComputer: new AuthorizationCacheKeyComputer() });
     this.accessToken = accessToken;
   }
 
@@ -103,8 +143,7 @@ class GitHubOAuthClient extends GitHubClient {
     if (!response.ok) {
       return false;
     }
-    const { user } = await response.json();
-    return user;
+    return await response.json();
   }
 
   /**
@@ -145,6 +184,10 @@ class GitHubOAuthClient extends GitHubClient {
     return repositories;
   }
 
+  createRepositoryClient({ repository }) {
+    return new GitHubRepositoryClient({ ...this, repository });
+  }
+
   _headers(headers = {}) {
     return super._headers({
       Authorization: `token ${this.accessToken}`,
@@ -163,53 +206,37 @@ class GitHubOAuthClient extends GitHubClient {
   }
 }
 
+/**
+ * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-a-github-app
+ */
 class GitHubAppClient extends GitHubClient {
-  async createRepositoryClient({ installation, repository }) {
-    const accessToken = await this._createInstallationAccessTokenForRepository({
-      installation,
-      repository,
-    });
-    return new GitHubRepositoryClient({
-      config: this.config,
-      repository,
-      accessToken,
-    });
+  constructor({ config }) {
+    super({ config, cacheKeyComputer: new CacheKeyComputer() });
   }
 
-  /**
-   * Get permissions of installation for the authenticated app.
-   * @see https://docs.github.com/en/rest/reference/apps#get-an-installation-for-the-authenticated-app
-   */
-  async getInstallationPermissions({ installation }) {
-    const url = this._url(`/app/installations/${installation.id}`);
-    const response = await fetch(url, { headers: this._headers() });
-    const { permissions } = await response.json();
-    return {
-      raw: permissions,
-      canRead(permission) {
-        return ["read", "write"].includes(permissions[permission]);
-      },
-      canWrite(permission) {
-        return ["write"].includes(permissions[permission]);
-      },
-    };
+  async createInstallationClient({ installation }) {
+    const accessToken = await this._createInstallationAccessToken({
+      installation,
+    });
+    return new GitHubInstallationClient({
+      config: this.config,
+      installation,
+      accessToken,
+    });
   }
 
   /**
    * Create an installation access token for a repository.
    * @see https://docs.github.com/en/rest/reference/apps#create-an-installation-access-token-for-an-app
    */
-  async _createInstallationAccessTokenForRepository({
-    installation,
-    repository,
-  }) {
+  async _createInstallationAccessToken({ installation }) {
     const url = this._url(
       `/app/installations/${installation.id}/access_tokens`
     );
     const response = await fetch(url, {
       method: "POST",
-      headers: this._headers({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ repository_ids: [repository.id] }),
+      headers: this._headers(/*{ "Content-Type": "application/json" }*/),
+      // body: JSON.stringify({ repository_ids: [repository.id] }),
     });
     const body = await response.json();
     return body.token;
@@ -239,11 +266,34 @@ class GitHubAppClient extends GitHubClient {
   }
 }
 
+/**
+ * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-an-installation
+ */
 class GitHubInstallationClient extends GitHubClient {
-  constructor({ config, installation, accessToken }) {
-    super({ config });
+  constructor({ config, cacheKeyComputer, installation, accessToken }) {
+    super({ config, cacheKeyComputer });
     this.installation = installation;
     this.accessToken = accessToken;
+  }
+
+  /**
+   * Get permissions of installation for the authenticated app.
+   * @see https://docs.github.com/en/rest/reference/apps#get-an-installation-for-the-authenticated-app
+   */
+  async getPermissions() {
+    const url = this._url(`/app/installations/${this.installation.id}`);
+    const { permissions } = await this._fetchJsonConditional(url, {
+      headers: this._headers(),
+    });
+    return {
+      raw: permissions,
+      canRead(permission) {
+        return ["read", "write"].includes(permissions[permission]);
+      },
+      canWrite(permission) {
+        return ["write"].includes(permissions[permission]);
+      },
+    };
   }
 
   async revokeAccessToken() {
@@ -251,7 +301,11 @@ class GitHubInstallationClient extends GitHubClient {
     await fetch(url, { method: "DELETE", headers: this._headers() });
   }
 
-  async _headers(headers = {}) {
+  createRepositoryClient({ repository }) {
+    return new GitHubRepositoryClient({ ...this, repository });
+  }
+
+  _headers(headers = {}) {
     return super._headers({
       ...headers,
       Authorization: `token ${this.accessToken}`,
@@ -259,14 +313,11 @@ class GitHubInstallationClient extends GitHubClient {
   }
 }
 
-class GitHubRepositoryClient extends GitHubInstallationClient {
-  constructor({ config, installation, repository, accessToken }) {
-    super({ config, installation, accessToken });
+class GitHubRepositoryClient extends GitHubClient {
+  constructor({ config, cacheKeyComputer, repository, accessToken }) {
+    super({ config, cacheKeyComputer });
     this.repository = repository;
-  }
-
-  async _url(url) {
-    return this.repository.url + url;
+    this.accessToken = accessToken;
   }
 
   /**
@@ -286,27 +337,65 @@ class GitHubRepositoryClient extends GitHubInstallationClient {
    * Get the repository's tickettager config.
    * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
    */
-  async getRepositoryConfig() {
-    const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
-    const response = await fetch(url, { headers: this._headers() });
-    if (!response.ok) {
-      return {};
-    }
-    const body = await response.json();
-    const repositoryConfigYaml = Buffer.from(body.content, "base64").toString(
-      "utf8"
-    );
+  async getConfig() {
+    const repositoryConfigYaml = await this.getConfigYaml();
     let repositoryConfig = {};
     try {
-      repositoryConfig = yaml.parse(repositoryConfigYaml);
+      repositoryConfig = YAML.parse(repositoryConfigYaml);
     } catch (err) {
       repositoryConfig = {};
     }
+    defaultsDeep(repositoryConfig, repositoryConfigDefaults);
     if (repositoryConfigSchema.validate(repositoryConfig).error) {
       repositoryConfig = {};
     }
     return repositoryConfig;
   }
+
+  /**
+   * Get the repository's tickettager config.
+   * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
+   */
+  async getConfigYaml() {
+    const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
+    const body = await this._fetchJsonConditional(url, {
+      headers: this._headers(),
+    });
+    if (!body) return "";
+    return Buffer.from(body.content, "base64").toString("utf8");
+  }
+
+  /**
+   * Updates the repository's tickettager config.
+   * @see https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents
+   */
+  async setConfigYaml(content) {
+    const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
+    await fetch(url, {
+      method: "PUT",
+      headers: this._headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        message: `Updated ${this.config.CONFIG_FILE_PATH}`,
+        content: Buffer.from(content, "utf8").toString("base64"),
+        sha: "from getConfig() request?",
+      }),
+    });
+  }
+
+  _url(url) {
+    return this.repository.url + url;
+  }
+
+  _headers(headers = {}) {
+    return super._headers({
+      ...headers,
+      Authorization: `token ${this.accessToken}`,
+    });
+  }
 }
 
-module.exports = { GitHubOAuthClient, GitHubAppClient };
+module.exports = {
+  repositoryConfigDefaults,
+  GitHubOAuthClient,
+  GitHubAppClient,
+};

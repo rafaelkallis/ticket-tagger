@@ -24,10 +24,10 @@
 const mongoose = require("mongoose");
 
 const cacheRecordSchema = new mongoose.Schema({
-  key: { type: String, required: true, index: { unique: true } },
+  key: { type: String, required: true, index: true },
   etag: { type: String, required: true },
   payload: { type: Object, required: true }, // TODO encrypt
-  _ts: { type: Date, expires: "1h" }, // cosmos db ttl
+  _ts: { type: Date, expires: 60 * 60 }, // cosmos db ttl
 });
 
 const CacheRecord = mongoose.model("CacheRecord", cacheRecordSchema);

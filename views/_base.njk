@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-color-mode="{{ theme | default("auto") }}" data-light-theme="light" data-dark-theme="dark_dimmed">
 
 <head>
   <meta charset="utf-8">
@@ -9,11 +9,73 @@
   {% block links %}
   <link href="/img/favicon.png" rel="icon" type="image/png" sizes="41x41">
   <link href="/css/primer.css" rel="stylesheet" />
-  {# <link href="https://unpkg.com/@primer/css@^16.0.0/dist/primer.css" rel="stylesheet" /> #}
   {% endblock %}
 </head>
 
 <body>
+  <header class="Header">
+    <div class="{% if not installation %}container-xl{% endif %} width-full d-flex">
+      <div class="Header-item Header-item--full">
+        <a href="#" class="Header-link f4 d-flex flex-items-center">
+          <img width="41" class="mt-n1 mb-n1 mr-1" alt="tickettagger" src="/img/favicon.png">
+          <span>Ticket Tagger</span>
+        </a>
+      </div>
+      {# <div class="Header-item">
+        <input type="search" class="form-control input-dark" />
+      </div>
+      <div class="Header-item Header-item--full">
+        Menu
+      </div> #}
+      {% if installation %}
+      <div class="Header-item mr-0">
+        <details class="dropdown details-reset details-overlay d-inline-block">
+          <summary class="Header-link p-2 d-inline" aria-haspopup="true">
+            {% octicon "plus" %}
+            <div class="dropdown-caret"></div>
+          </summary>
+          <div class="dropdown-menu dropdown-menu-sw">
+            <a class="dropdown-item" href="https://github.com/settings/installations/{{ installation.id }}">Add repository</a>
+            <a class="dropdown-item" href="https://github.com/apps/ticket-tagger/installations/new">Add account</a>
+          </div>
+        </details>
+      </div>
+      <div class="Header-item mr-0">
+        <details class="dropdown details-reset details-overlay d-inline-block">
+          <summary class="Header-link p-2 d-inline" aria-haspopup="true">
+            <img class="avatar mr-1" height="20" alt="@{{ installation.account.login }}" src="{{ installation.account.avatar_url }}" width="20">
+            {{ installation.account.login }}
+            <div class="dropdown-caret"></div>
+          </summary>
+          <ul class="dropdown-menu dropdown-menu-sw">
+            <li class="dropdown-header">
+              {% octicon "arrow-switch", class="mr-1" %} Switch accounts
+            </li>
+            {% for installation in installations %}
+            <li>
+              <a class="dropdown-item" href="/{{ installation.account.login }}">
+                <img class="avatar" height="20" alt="@{{ installation.account.login }}" src="{{ installation.account.avatar_url }}" width="20">
+                {{ installation.account.login }}
+              </a>
+            </li>
+            {% endfor %}
+            {# <a class="dropdown-item text-center" href="https://github.com/apps/ticket-tagger/installations/new">{% octicon "plus-circle" %}</a> #}
+            <li class="dropdown-divider" role="separator"></li>
+            <li>
+              <form action="/logout" method="POST">
+                <button class="btn btn-invisible Link--primary" type="submit" class="dropdown-item">Sign out</button>
+              </form>
+            </li>
+          </ul>
+        </details>
+      </div>
+      {% else %}
+      <div class="Header-item mr-0">
+        <a class="Header-link btn btn-outline" href="/login">Sign in</a>
+      </div>
+      {% endif %}
+    </div>
+  </header>
   {% block body %}{% endblock %}
   {% block scripts %}{% endblock %}
 </body>

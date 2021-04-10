@@ -23,24 +23,8 @@
 
 const express = require("express");
 const { Webhooks, createNodeMiddleware } = require("@octokit/webhooks");
-const { defaultsDeep } = require("lodash");
-const Joi = require("joi");
 const telemetry = require("./telemetry");
-const { repositoryConfigSchema } = require("./schemata");
-
-const repositoryConfigDefaults = {
-  version: 3,
-  labels: Object.fromEntries(
-    ["bug", "enhancement", "question"].map((label) => [
-      label,
-      {
-        enabled: true,
-        text: label,
-      },
-    ])
-  ),
-};
-Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
+const { repositoryConfigDefaults } = require("./github");
 
 function WebhookApp({ config, classifier, appClient }) {
   const webhooks = new Webhooks({ secret: config.GITHUB_SECRET });
@@ -49,25 +33,23 @@ function WebhookApp({ config, classifier, appClient }) {
   async function handleIssueOpened({ payload }) {
     const { installation, repository, issue } = payload;
 
-    /* get installation permissions */
-    const permissions = await appClient.getInstallationPermissions({
+    const installationClient = await appClient.createInstallationClient({
       installation,
-      repository,
     });
+
+    /* get installation permissions */
+    const permissions = await installationClient.getPermissions();
 
     /* abort if no issue issue permission */
     if (!permissions.canWrite("issues")) return;
 
-    const repositoryClient = await appClient.createRepositoryClient({
-      installation,
+    const repositoryClient = installationClient.createRepositoryClient({
       repository,
     });
 
-    let repositoryConfig = {};
-    if (permissions.canRead("single_file")) {
-      repositoryConfig = await repositoryClient.getRepositoryConfig();
-    }
-    defaultsDeep(repositoryConfig, repositoryConfigDefaults);
+    const repositoryConfig = permissions.canRead("single_file")
+      ? await repositoryClient.getConfig()
+      : repositoryConfigDefaults;
 
     /* predict label */
     const [predictedLabelKey, similarity] = await classifier.predict(
