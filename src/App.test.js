@@ -86,7 +86,7 @@ describe("app integration test", () => {
       .reply(() => getRepositoryConfigResult);
     getRepositoryConfigResult = [
       200,
-      { content: "" },
+      { type: "file", encoding: "base64", content: "" },
       { ETag: `Test-${Date.now()}` },
     ];
 
