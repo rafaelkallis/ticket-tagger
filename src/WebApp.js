@@ -212,7 +212,7 @@ function WebApp({ config }) {
           { ...label, enabled: Boolean(label.enabled) },
         ])
       );
-      console.log(req.body);
+      console.log("/:owner/:repo", req.originalUrl, req.body);
       if (repositoryConfigSchema.validate(req.body).error) {
         return res.sendStatus(400);
       }

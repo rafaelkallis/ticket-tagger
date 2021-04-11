@@ -37,17 +37,14 @@ function WebhookApp({ config, classifier, appClient }) {
       installation,
     });
 
-    /* get installation permissions */
-    const permissions = await installationClient.getPermissions();
-
-    /* abort if no issue issue permission */
-    if (!permissions.canWrite("issues")) return;
+    /* abort if no issues write permission */
+    if (!installationClient.canWrite("issues")) return;
 
     const repositoryClient = installationClient.createRepositoryClient({
       repository,
     });
 
-    const repositoryConfig = permissions.canRead("single_file")
+    const repositoryConfig = installationClient.canRead("single_file")
       ? await repositoryClient.getConfig()
       : repositoryConfigDefaults;
 
@@ -70,7 +67,7 @@ function WebhookApp({ config, classifier, appClient }) {
       telemetry.event("Classified");
     }
 
-    await repositoryClient.revokeAccessToken();
+    await installationClient.revokeAccessToken();
   }
 
   webhooks.on("installation.created", async () => {

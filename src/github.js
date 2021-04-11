@@ -215,13 +215,17 @@ class GitHubAppClient extends GitHubClient {
   }
 
   async createInstallationClient({ installation }) {
-    const accessToken = await this._createInstallationAccessToken({
+    const {
+      accessToken,
+      permissions,
+    } = await this._createInstallationAccessToken({
       installation,
     });
     return new GitHubInstallationClient({
-      config: this.config,
+      ...this,
       installation,
       accessToken,
+      permissions,
     });
   }
 
@@ -235,11 +239,13 @@ class GitHubAppClient extends GitHubClient {
     );
     const response = await fetch(url, {
       method: "POST",
-      headers: this._headers(/*{ "Content-Type": "application/json" }*/),
-      // body: JSON.stringify({ repository_ids: [repository.id] }),
+      headers: this._headers(),
     });
-    const body = await response.json();
-    return body.token;
+    if (!response.ok) {
+      throw new Error("was not able to create an installation access token");
+    }
+    const { token, permissions } = await response.json();
+    return { accessToken: token, permissions };
   }
 
   _headers(headers = {}) {
@@ -270,30 +276,24 @@ class GitHubAppClient extends GitHubClient {
  * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-an-installation
  */
 class GitHubInstallationClient extends GitHubClient {
-  constructor({ config, cacheKeyComputer, installation, accessToken }) {
+  constructor({
+    config,
+    cacheKeyComputer,
+    installation,
+    accessToken,
+    permissions,
+  }) {
     super({ config, cacheKeyComputer });
     this.installation = installation;
     this.accessToken = accessToken;
+    this.permissions = permissions;
   }
 
-  /**
-   * Get permissions of installation for the authenticated app.
-   * @see https://docs.github.com/en/rest/reference/apps#get-an-installation-for-the-authenticated-app
-   */
-  async getPermissions() {
-    const url = this._url(`/app/installations/${this.installation.id}`);
-    const { permissions } = await this._fetchJsonConditional(url, {
-      headers: this._headers(),
-    });
-    return {
-      raw: permissions,
-      canRead(permission) {
-        return ["read", "write"].includes(permissions[permission]);
-      },
-      canWrite(permission) {
-        return ["write"].includes(permissions[permission]);
-      },
-    };
+  canRead(permission) {
+    return ["read", "write"].includes(this.permissions[permission]);
+  }
+  canWrite(permission) {
+    return ["write"].includes(this.permissions[permission]);
   }
 
   async revokeAccessToken() {
@@ -339,17 +339,14 @@ class GitHubRepositoryClient extends GitHubClient {
    */
   async getConfig() {
     const repositoryConfigYaml = await this.getConfigYaml();
-    let repositoryConfig = {};
-    try {
-      repositoryConfig = YAML.parse(repositoryConfigYaml);
-    } catch (err) {
+    let repositoryConfig = YAML.parse(repositoryConfigYaml);
+    if (!repositoryConfig) {
       repositoryConfig = {};
     }
-    defaultsDeep(repositoryConfig, repositoryConfigDefaults);
     if (repositoryConfigSchema.validate(repositoryConfig).error) {
       repositoryConfig = {};
     }
-    return repositoryConfig;
+    return defaultsDeep(repositoryConfig, repositoryConfigDefaults);
   }
 
   /**

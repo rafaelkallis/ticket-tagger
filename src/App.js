@@ -35,9 +35,9 @@ function App({ config }) {
     config,
     modelUri: config.FASTTEXT_MODEL_URI,
   });
-  const gitHubAppClient = new GitHubAppClient({ config });
+  const appClient = new GitHubAppClient({ config });
   const webApp = new WebApp({ config });
-  const webhookApp = new WebhookApp({ config, classifier, gitHubAppClient });
+  const webhookApp = new WebhookApp({ config, classifier, appClient });
 
   const app = express();
 

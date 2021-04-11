@@ -34,10 +34,8 @@ const requestDelayMilliseconds = 100;
 describe("app integration test", () => {
   let app;
   let installationAccessToken;
-  let getInstallationPermissionsScope;
-  let getInstallationPermissionResult;
-  let createRepositoryAccessTokenScope;
-  let createRepositoryAccessTokenResult;
+  let createInstallationAccessTokenScope;
+  let createInstallationAccessTokenResult;
   let getRepositoryConfigScope;
   let getRepositoryConfigResult;
   let setLabelsScope;
@@ -55,8 +53,8 @@ describe("app integration test", () => {
   beforeEach(() => {
     installationAccessToken = `access-token-${Date.now()}`;
 
-    getInstallationPermissionsScope = nock(`https://api.github.com`)
-      .get(`/app/installations/${payload.installation.id}`)
+    createInstallationAccessTokenScope = nock(`https://api.github.com`)
+      .post(`/app/installations/${payload.installation.id}/access_tokens`)
       .matchHeader(
         "Authorization",
         /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/
@@ -64,34 +62,17 @@ describe("app integration test", () => {
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Accept", "application/vnd.github.v3+json")
       .delay(requestDelayMilliseconds)
-      .reply(() => getInstallationPermissionResult);
-    getInstallationPermissionResult = [
+      .reply(() => createInstallationAccessTokenResult);
+    createInstallationAccessTokenResult = [
       200,
       {
+        token: installationAccessToken,
         permissions: {
           metadata: "read",
           issues: "write",
           single_file: "write",
         },
       },
-    ];
-
-    createRepositoryAccessTokenScope = nock(`https://api.github.com`)
-      .post(`/app/installations/${payload.installation.id}/access_tokens`, {
-        repository_ids: [payload.repository.id],
-      })
-      .matchHeader(
-        "Authorization",
-        /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/
-      )
-      .matchHeader("User-Agent", "Ticket-Tagger")
-      .matchHeader("Content-Type", "application/json")
-      .matchHeader("Accept", "application/vnd.github.v3+json")
-      .delay(requestDelayMilliseconds)
-      .reply(() => createRepositoryAccessTokenResult);
-    createRepositoryAccessTokenResult = [
-      200,
-      { token: installationAccessToken },
     ];
 
     getRepositoryConfigScope = nock("https://api.github.com")
@@ -103,7 +84,11 @@ describe("app integration test", () => {
       .matchHeader("Accept", "application/vnd.github.v3+json")
       .delay(requestDelayMilliseconds)
       .reply(() => getRepositoryConfigResult);
-    getRepositoryConfigResult = [200, { content: "" }];
+    getRepositoryConfigResult = [
+      200,
+      { content: "" },
+      { ETag: `Test-${Date.now()}` },
+    ];
 
     setLabelsScope = nock("https://api.github.com")
       .put(`/repos/${payload.repository.full_name}/issues/62/labels`)
@@ -154,15 +139,14 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(200);
 
-    getInstallationPermissionsScope.done();
-    createRepositoryAccessTokenScope.done();
+    createInstallationAccessTokenScope.done();
     getRepositoryConfigScope.done();
     setLabelsScope.done();
     revokeAccessTokenScope.done();
   });
 
   test("when no issues write permission should not perform any action", async () => {
-    delete getInstallationPermissionResult[1].permissions.issues;
+    delete createInstallationAccessTokenResult[1].permissions.issues;
 
     const response = await request(app.server)
       .post("/webhook")
@@ -174,15 +158,14 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(200);
 
-    getInstallationPermissionsScope.done();
-    expect(createRepositoryAccessTokenScope.isDone()).toBeFalsy();
+    createInstallationAccessTokenScope.done();
     expect(getRepositoryConfigScope.isDone()).toBeFalsy();
     expect(setLabelsScope.isDone()).toBeFalsy();
     expect(revokeAccessTokenScope.isDone()).toBeFalsy();
   });
 
   test("when no contents read permission should not get repository config", async () => {
-    delete getInstallationPermissionResult[1].permissions.single_file;
+    delete createInstallationAccessTokenResult[1].permissions.single_file;
 
     const response = await request(app.server)
       .post("/webhook")
@@ -194,8 +177,7 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(200);
 
-    getInstallationPermissionsScope.done();
-    createRepositoryAccessTokenScope.done();
+    createInstallationAccessTokenScope.done();
     expect(getRepositoryConfigScope.isDone()).toBeFalsy();
     setLabelsScope.done();
     revokeAccessTokenScope.done();
@@ -212,8 +194,7 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(400);
 
-    expect(getInstallationPermissionsScope.isDone()).toBeFalsy();
-    expect(createRepositoryAccessTokenScope.isDone()).toBeFalsy();
+    expect(createInstallationAccessTokenScope.isDone()).toBeFalsy();
     expect(getRepositoryConfigScope.isDone()).toBeFalsy();
     expect(setLabelsScope.isDone()).toBeFalsy();
     expect(revokeAccessTokenScope.isDone()).toBeFalsy();
