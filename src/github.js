@@ -85,6 +85,14 @@ class GitHubClient {
     };
   }
 
+  _assertSuccess(response) {
+    if (!response.ok && response.status !== 304) {
+      throw new Error(
+        `github api request failed for "${response.url}", got "${response.status}: ${response.statusText}".`
+      );
+    }
+  }
+
   /**
    * Uses conditional requests for improved rate limits.
    * @see https://docs.github.com/en/rest/guides/getting-started-with-the-rest-api#conditional-requests
@@ -236,9 +244,7 @@ class GitHubAppClient extends GitHubClient {
       method: "POST",
       headers: this._headers(),
     });
-    if (!response.ok) {
-      throw new Error("was not able to create an installation access token");
-    }
+    this._assertSuccess(response);
     const { token, permissions } = await response.json();
     return { accessToken: token, permissions };
   }
@@ -293,7 +299,11 @@ class GitHubInstallationClient extends GitHubClient {
 
   async revokeAccessToken() {
     const url = this._url("/app/installation/token");
-    await fetch(url, { method: "DELETE", headers: this._headers() });
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: this._headers(),
+    });
+    this._assertSuccess(response);
   }
 
   createRepositoryClient({ repository }) {
@@ -321,11 +331,12 @@ class GitHubRepositoryClient extends GitHubClient {
    */
   async setIssueLabels({ issue, labels }) {
     const url = this._url(`/issues/${issue}/labels`);
-    return await fetch(url, {
+    const response = await fetch(url, {
       method: "PUT",
       headers: this._headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({ labels }),
     });
+    this._assertSuccess(response);
   }
 
   /**
@@ -333,10 +344,10 @@ class GitHubRepositoryClient extends GitHubClient {
    * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
    */
   async getConfig() {
+    let repositoryConfig = {};
     const repositoryConfigYaml = await this.getConfigYaml();
-    let repositoryConfig = YAML.parse(repositoryConfigYaml);
-    if (!repositoryConfig) {
-      repositoryConfig = {};
+    if (repositoryConfigYaml) {
+      repositoryConfig = YAML.parse(repositoryConfigYaml.content) || {};
     }
     if (repositoryConfigSchema.validate(repositoryConfig).error) {
       repositoryConfig = {};
@@ -345,7 +356,7 @@ class GitHubRepositoryClient extends GitHubClient {
   }
 
   /**
-   * Get the repository's tickettager config.
+   * Get the repository's raw tickettager config in YAML.
    * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
    */
   async getConfigYaml() {
@@ -353,25 +364,31 @@ class GitHubRepositoryClient extends GitHubClient {
     const body = await this._fetchJsonConditional(url, {
       headers: this._headers(),
     });
-    if (!body) return "";
-    return Buffer.from(body.content, "base64").toString("utf8");
+    if (!body) return null;
+    if (body.type !== "file") throw new Error("expected file");
+    if (body.encoding !== "base64") throw new Error("expected base64 encoding");
+    return {
+      sha: body.sha,
+      content: Buffer.from(body.content, "base64").toString("utf8"),
+    };
   }
 
   /**
    * Updates the repository's tickettager config.
    * @see https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents
    */
-  async setConfigYaml(content) {
+  async setConfigYaml({ sha, content }) {
     const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
-    await fetch(url, {
+    const response = await fetch(url, {
       method: "PUT",
       headers: this._headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         message: `Updated ${this.config.CONFIG_FILE_PATH}`,
         content: Buffer.from(content, "utf8").toString("base64"),
-        sha: "from getConfig() request?",
+        sha,
       }),
     });
+    this._assertSuccess(response);
   }
 
   _url(url) {

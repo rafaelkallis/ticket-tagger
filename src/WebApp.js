@@ -37,7 +37,7 @@ const { detailedDiff } = require("deep-object-diff");
 const { GitHubOAuthClient, repositoryConfigDefaults } = require("./github");
 const { repositoryConfigSchema } = require("./schemata");
 
-function WebApp({ config }) {
+function WebApp({ config, appClient }) {
   const passport = new Passport();
 
   passport.use(
@@ -164,6 +164,7 @@ function WebApp({ config }) {
         (i) => i.account.login === owner
       );
       if (!res.locals.installation) {
+        // render not found page
         return res.redirect(`/${installations[0].account.login}`);
       }
       next();
@@ -212,7 +213,6 @@ function WebApp({ config }) {
           { ...label, enabled: Boolean(label.enabled) },
         ])
       );
-      console.log("/:owner/:repo", req.originalUrl, req.body);
       if (repositoryConfigSchema.validate(req.body).error) {
         return res.sendStatus(400);
       }
@@ -221,24 +221,40 @@ function WebApp({ config }) {
         res.locals.config,
         req.body
       );
-      const configYaml = await req.githubRepositoryClient.getConfigYaml();
-      const configDoc = YAML.parseDocument(configYaml);
+      if ([added, deleted, updated].some((o) => !!Object.keys(o).length)) {
+        /* change detected */
+        const configYaml = await req.githubRepositoryClient.getConfigYaml();
+        const configDoc = YAML.parseDocument(configYaml.content);
 
-      console.log("before", configDoc.toJSON());
+        traverse(added).forEach(([path, value]) =>
+          configDoc.setIn(path, value)
+        );
+        traverse(deleted).forEach(([path, value]) =>
+          configDoc.deleteIn(path, value)
+        );
+        traverse(updated).forEach(([path, value]) =>
+          configDoc.setIn(path, value)
+        );
 
-      traverse(added).forEach(([path, value]) => configDoc.setIn(path, value));
-      traverse(deleted).forEach(([path, value]) =>
-        configDoc.deleteIn(path, value)
-      );
-      traverse(updated).forEach(([path, value]) =>
-        configDoc.setIn(path, value)
-      );
-
-      console.log("after", configDoc.toJSON());
-      res.locals.config = defaultsDeep(
-        configDoc.toJSON(),
-        repositoryConfigDefaults
-      );
+        /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
+        const installationClient = await appClient.createInstallationClient(
+          res.locals
+        );
+        if (!installationClient.canWrite("single_file")) {
+          return res.sendStatus(403);
+        }
+        const repositoryClient = installationClient.createRepositoryClient(
+          res.locals
+        );
+        await repositoryClient.setConfigYaml({
+          content: configDoc.toString(),
+          sha: configYaml.sha,
+        });
+        res.locals.config = defaultsDeep(
+          configDoc.toJSON(),
+          repositoryConfigDefaults
+        );
+      }
 
       res.render("repo");
 
