@@ -41,9 +41,6 @@ const { App } = require("./App");
 
 const app = new App({ config });
 
-// for (const signal of ["SIGINT", "SIGTERM"]) {
-//   process.once(signal, () => app.stop());
-// }
 process.once("beforeExit", () => app.stop());
 
 app.start();
