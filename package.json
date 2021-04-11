@@ -38,7 +38,6 @@
     "applicationinsights-native-metrics": "0.0.6",
     "chalk": "4.1.0",
     "connect-mongo": "4.4.1",
-    "csurf": "1.11.0",
     "deep-object-diff": "1.1.0",
     "dotenv": "8.2.0",
     "envalid": "7.1.0",

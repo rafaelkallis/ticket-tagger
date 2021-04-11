@@ -26,7 +26,6 @@ const { callbackify } = require("util");
 const express = require("express");
 const session = require("express-session");
 const MongoSessionStore = require("connect-mongo");
-const csurf = require("csurf");
 const mongoose = require("mongoose");
 const { Passport } = require("passport");
 const { Strategy: GitHubStrategy } = require("passport-github");
@@ -103,7 +102,7 @@ function WebApp({ config, appClient }) {
       resave: false,
       cookie: {
         secure: config.isProduction,
-        sameSite: "lax",
+        sameSite: "strict",
       },
       store: MongoSessionStore.create({
         clientPromise: new Promise((resolve) =>
@@ -120,10 +119,6 @@ function WebApp({ config, appClient }) {
   );
 
   app.use(express.urlencoded({ extended: true }));
-  app.use(csurf(), function addCsurfToken(req, res, next) {
-    res.locals.csrfToken = req.csrfToken();
-    next();
-  });
 
   app.use(passport.initialize());
   app.use(passport.session());
@@ -212,7 +207,7 @@ function WebApp({ config, appClient }) {
   app.post(
     "/:owner/:repo",
     asyncMiddleware(async (req, res) => {
-      const { _csrf, ...updatedRepositoryConfig } = req.body;
+      const updatedRepositoryConfig = req.body;
       updatedRepositoryConfig.labels = Object.fromEntries(
         Object.entries(updatedRepositoryConfig.labels || {}).map(([key, label]) => [
           key,
@@ -262,7 +257,7 @@ function WebApp({ config, appClient }) {
         );
       }
 
-      res.render("repo");
+      res.redirect(`/${res.locals.repository.full_name}`);
 
       function traverse(value) {
         return Array.from(traverseInner([], value));
