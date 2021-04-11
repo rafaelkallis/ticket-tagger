@@ -24,6 +24,7 @@
     <h2 class="Subhead-heading">Labels</h2>
   </div>
   <form action="/{{ repository.full_name }}" method="POST">
+    <input type="hidden" name="_csrf" value="{{ csrfToken }}" />
     <div class="Box">
       {# <input type="hidden" name="labels.version" value={{ config}} > #}
       <ul>

@@ -26,6 +26,7 @@ const { callbackify } = require("util");
 const express = require("express");
 const session = require("express-session");
 const MongoSessionStore = require("connect-mongo");
+const csurf = require("csurf");
 const mongoose = require("mongoose");
 const { Passport } = require("passport");
 const { Strategy: GitHubStrategy } = require("passport-github");
@@ -119,6 +120,10 @@ function WebApp({ config, appClient }) {
   );
 
   app.use(express.urlencoded({ extended: true }));
+  app.use(csurf(), function addCsurfToken(req, res, next) {
+    res.locals.csrfToken = req.csrfToken();
+    next();
+  });
 
   app.use(passport.initialize());
   app.use(passport.session());
@@ -207,19 +212,20 @@ function WebApp({ config, appClient }) {
   app.post(
     "/:owner/:repo",
     asyncMiddleware(async (req, res) => {
-      req.body.labels = Object.fromEntries(
-        Object.entries(req.body.labels || {}).map(([key, label]) => [
+      const { _csrf, ...updatedRepositoryConfig } = req.body;
+      updatedRepositoryConfig.labels = Object.fromEntries(
+        Object.entries(updatedRepositoryConfig.labels || {}).map(([key, label]) => [
           key,
           { ...label, enabled: Boolean(label.enabled) },
         ])
       );
-      if (repositoryConfigSchema.validate(req.body).error) {
+      if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
         return res.sendStatus(400);
       }
-      defaultsDeep(req.body, repositoryConfigDefaults);
+      defaultsDeep(updatedRepositoryConfig, repositoryConfigDefaults);
       const { added, deleted, updated } = detailedDiff(
         res.locals.config,
-        req.body
+        updatedRepositoryConfig
       );
       if ([added, deleted, updated].some((o) => !!Object.keys(o).length)) {
         /* change detected */
