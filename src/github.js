@@ -110,12 +110,7 @@ class GitHubClient {
     }
     cacheRecord.etag = etag;
     cacheRecord.payload = payload;
-    try {
-      await cacheRecord.save();
-    } catch (e) {
-      console.log(url, cacheRecord.etag, options.headers.Authorization, cacheRecord.key, cacheRecord.id, cacheRecord.isNew);
-      throw e;
-    }
+    await cacheRecord.save();
     return payload;
   }
 }

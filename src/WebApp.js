@@ -22,6 +22,7 @@
 "use strict";
 
 const path = require("path");
+const { callbackify } = require("util");
 const express = require("express");
 const session = require("express-session");
 const MongoSessionStore = require("connect-mongo");
@@ -33,7 +34,6 @@ const nunjucksOcticonsExtension = require("nunjucks-octicons-extension");
 const { defaultsDeep } = require("lodash");
 const YAML = require("yaml");
 const { detailedDiff } = require("deep-object-diff");
-const { User } = require("./entities/User");
 const { GitHubOAuthClient, repositoryConfigDefaults } = require("./github");
 const { repositoryConfigSchema } = require("./schemata");
 
@@ -46,26 +46,39 @@ function WebApp({ config }) {
         clientID: config.GITHUB_CLIENT_ID,
         clientSecret: config.GITHUB_CLIENT_SECRET,
         callbackURL: config.SERVER_BASE_URL + "/auth/callback",
+        passReqToCallback: true,
       },
-      (accessToken, refreshToken, profile, callback) => {
-        return User.findOneAndUpdate(
-          { login: profile.username },
-          {
-            login: profile.username,
-            email: profile.emails.map(({ value }) => value)[0],
-            name: profile.displayName,
-            accessToken,
-            loginAt: Date.now(),
-          },
-          { new: true, upsert: true },
-          callback
-        );
-      }
+      callbackify(async function verify(
+        req,
+        accessToken,
+        _refreshToken,
+        profile
+      ) {
+        /* make sure we are using a server-side session store, access token is sensitive */
+        req.session.accessToken = accessToken;
+        return profile._json;
+      })
     )
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
-  passport.deserializeUser((id, done) => User.findById(id, done));
+  passport.serializeUser(callbackify(async (user) => user.id));
+  passport.deserializeUser(
+    callbackify(async function deserializeUser(req, id) {
+      const githubOAuthClient = new GitHubOAuthClient({
+        config,
+        accessToken: req.session.accessToken,
+      });
+      const checkTokenResponse = await githubOAuthClient.checkToken();
+      if (!checkTokenResponse) {
+        throw new Error("revoked access token");
+      }
+      if (id !== checkTokenResponse.user.id) {
+        throw new Error("unexpected user id mismatch");
+      }
+      req.githubOAuthClient = githubOAuthClient;
+      return checkTokenResponse.user;
+    })
+  );
 
   const app = express();
 
@@ -100,7 +113,7 @@ function WebApp({ config }) {
         /* https://github.com/jdesboeufs/connect-mongo#crypto-related-options */
         crypto: { secret: config.SESSION_STORE_ENCRYPTION_KEY },
         autoRemove: "interval",
-        autoRemoveInterval: 10,
+        autoRemoveInterval: 60,
       }),
     })
   );
@@ -113,34 +126,21 @@ function WebApp({ config }) {
   app.use(
     asyncMiddleware(async function prepareInstallations(req, res, next) {
       if (!req.isAuthenticated()) return next();
-      const githubOAuthClient = new GitHubOAuthClient({
-        config,
-        accessToken: req.user.accessToken,
-      });
-      const checkTokenResponse = await githubOAuthClient.checkToken();
-      if (!checkTokenResponse) {
-        console.log("revoked access token");
-        // access token has been revoked
-        req.logout();
-        return next();
-      }
-      req.githubOAuthClient = githubOAuthClient;
-      res.locals.user = checkTokenResponse.user;
-      res.locals.installations = await githubOAuthClient.listInstallations();
+      res.locals.user = req.user;
+      res.locals.installations = await req.githubOAuthClient.listInstallations();
       next();
     })
   );
 
   app.get("/", (req, res) => {
     // redirect loop
-    //if (req.isAuthenticated()) return res.redirect(`/${req.user.login}`);
+    if (req.isAuthenticated()) return res.redirect(`/${req.user.login}`);
     res.render("index");
   });
   app.get("/login", passport.authenticate("github"));
 
   app.get("/auth/callback", passport.authenticate("github"), (req, res) => {
-    console.log("callback", JSON.stringify(req.user));
-    res.redirect(`/${req.user.login}`);
+    res.redirect("/");
   });
 
   app.use(ensureAuthenticated({ config }));
