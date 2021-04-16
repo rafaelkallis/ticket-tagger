@@ -25,10 +25,21 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const fetch = require("node-fetch");
 const YAML = require("yaml");
+const { detailedDiff } = require("deep-object-diff");
 const Joi = require("joi");
-const { defaultsDeep } = require("lodash");
-const { repositoryConfigSchema } = require("./schemata");
+const { cloneDeep, defaultsDeep } = require("lodash");
 const { CacheRecord } = require("./entities/CacheRecord");
+
+const repositoryConfigSchema = Joi.object({
+  version: Joi.number().allow(3),
+  labels: Joi.object().pattern(
+    Joi.string().valid("bug", "enhancement", "question"),
+    {
+      enabled: Joi.boolean(),
+      text: Joi.string().max(50),
+    }
+  ),
+});
 
 const repositoryConfigDefaults = {
   version: 3,
@@ -226,8 +237,8 @@ class GitHubAppClient extends GitHubClient {
     });
     return new GitHubInstallationClient({
       ...this,
-      installation,
       accessToken,
+      installation,
       permissions,
     });
   }
@@ -280,19 +291,20 @@ class GitHubInstallationClient extends GitHubClient {
   constructor({
     config,
     cacheKeyComputer,
-    installation,
     accessToken,
+    installation,
     permissions,
   }) {
     super({ config, cacheKeyComputer });
-    this.installation = installation;
     this.accessToken = accessToken;
+    this.installation = installation;
     this.permissions = permissions;
   }
 
   canRead(permission) {
     return ["read", "write"].includes(this.permissions[permission]);
   }
+
   canWrite(permission) {
     return ["write"].includes(this.permissions[permission]);
   }
@@ -319,10 +331,10 @@ class GitHubInstallationClient extends GitHubClient {
 }
 
 class GitHubRepositoryClient extends GitHubClient {
-  constructor({ config, cacheKeyComputer, repository, accessToken }) {
+  constructor({ config, cacheKeyComputer, accessToken, repository }) {
     super({ config, cacheKeyComputer });
-    this.repository = repository;
     this.accessToken = accessToken;
+    this.repository = repository;
   }
 
   /**
@@ -344,22 +356,6 @@ class GitHubRepositoryClient extends GitHubClient {
    * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
    */
   async getConfig() {
-    let repositoryConfig = {};
-    const repositoryConfigYaml = await this.getConfigYaml();
-    if (repositoryConfigYaml) {
-      repositoryConfig = YAML.parse(repositoryConfigYaml.content) || {};
-    }
-    if (repositoryConfigSchema.validate(repositoryConfig).error) {
-      repositoryConfig = {};
-    }
-    return defaultsDeep(repositoryConfig, repositoryConfigDefaults);
-  }
-
-  /**
-   * Get the repository's raw tickettager config in YAML.
-   * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
-   */
-  async getConfigYaml() {
     const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
     const body = await this._fetchJsonConditional(url, {
       headers: this._headers(),
@@ -367,28 +363,84 @@ class GitHubRepositoryClient extends GitHubClient {
     if (!body) return null;
     if (body.type !== "file") throw new Error("expected file");
     if (body.encoding !== "base64") throw new Error("expected base64 encoding");
-    return {
-      sha: body.sha,
-      content: Buffer.from(body.content, "base64").toString("utf8"),
-    };
+
+    const yaml = Buffer.from(body.content, "base64").toString("utf8");
+    let json = {};
+    if (yaml) {
+      json = YAML.parse(yaml);
+    }
+    if (repositoryConfigSchema.validate(json).error) {
+      json = {};
+    }
+    json = defaultsDeep(json, repositoryConfigDefaults);
+    return { yaml, json, sha: body.sha };
   }
 
   /**
    * Updates the repository's tickettager config.
    * @see https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents
    */
-  async setConfigYaml({ sha, content }) {
+  async mergeConfig({
+    repositoryConfig,
+    repositoryConfigYaml,
+    sha,
+    updatedRepositoryConfig,
+  }) {
+    if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
+      throw new Error("schema validation error");
+    }
+    updatedRepositoryConfig = defaultsDeep(
+      cloneDeep(updatedRepositoryConfig),
+      repositoryConfigDefaults
+    );
+
+    const { added, deleted, updated } = detailedDiff(
+      repositoryConfig,
+      updatedRepositoryConfig
+    );
+    if (![added, deleted, updated].some((o) => !!Object.keys(o).length)) {
+      /* no change detected */
+      return;
+    }
+    const yamlDoc = YAML.parseDocument(repositoryConfigYaml);
+
+    traverse(added).forEach(([path, value]) => yamlDoc.setIn(path, value));
+    traverse(deleted).forEach(([path, value]) => yamlDoc.deleteIn(path, value));
+    traverse(updated).forEach(([path, value]) => yamlDoc.setIn(path, value));
+
+    const updatedYaml = yamlDoc.toString();
+
     const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
     const response = await fetch(url, {
       method: "PUT",
       headers: this._headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         message: `Updated ${this.config.CONFIG_FILE_PATH}`,
-        content: Buffer.from(content, "utf8").toString("base64"),
+        content: Buffer.from(updatedYaml, "utf8").toString("base64"),
         sha,
       }),
     });
     this._assertSuccess(response);
+    const body = await response.json();
+
+    return {
+      json: updatedRepositoryConfig,
+      yaml: updatedYaml,
+      sha: body.content.sha,
+    };
+
+    function traverse(value) {
+      return Array.from(traverseInner([], value));
+      function* traverseInner(path, value) {
+        if (typeof value !== "object") {
+          yield [path, value];
+          return;
+        }
+        for (let [childKey, childValue] of Object.entries(value)) {
+          yield* traverseInner([...path, childKey], childValue);
+        }
+      }
+    }
   }
 
   _url(url) {
@@ -404,6 +456,7 @@ class GitHubRepositoryClient extends GitHubClient {
 }
 
 module.exports = {
+  repositoryConfigSchema,
   repositoryConfigDefaults,
   GitHubOAuthClient,
   GitHubAppClient,

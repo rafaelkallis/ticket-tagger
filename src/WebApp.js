@@ -31,15 +31,10 @@ const { Passport } = require("passport");
 const { Strategy: GitHubStrategy } = require("passport-github");
 const nunjucks = require("nunjucks");
 const nunjucksOcticonsExtension = require("nunjucks-octicons-extension");
-const { defaultsDeep } = require("lodash");
-const YAML = require("yaml");
-const { detailedDiff } = require("deep-object-diff");
-const { GitHubOAuthClient, repositoryConfigDefaults } = require("./github");
-const { repositoryConfigSchema } = require("./schemata");
+const { GitHubOAuthClient, repositoryConfigSchema } = require("./github");
 
 function WebApp({ config, appClient }) {
   const passport = new Passport();
-
   passport.use(
     new GitHubStrategy(
       {
@@ -60,7 +55,6 @@ function WebApp({ config, appClient }) {
       })
     )
   );
-
   passport.serializeUser(callbackify(async (user) => user.id));
   passport.deserializeUser(
     callbackify(async function deserializeUser(req, id) {
@@ -184,13 +178,55 @@ function WebApp({ config, appClient }) {
       req.githubRepositoryClient = req.githubOAuthClient.createRepositoryClient(
         res.locals
       );
-      res.locals.config = defaultsDeep(
-        await req.githubRepositoryClient.getConfig(),
-        repositoryConfigDefaults
-      );
+      res.locals.config = await req.githubRepositoryClient.getConfig();
       next();
     })
   );
+
+  app.post(
+    "/:owner/:repo",
+    asyncMiddleware(async (req, res) => {
+      const { sha, ...updatedRepositoryConfig } = req.body;
+      if (sha !== res.locals.config.sha) {
+        return res.sendStatus(409);
+      }
+      /* form booleans */
+      updatedRepositoryConfig.labels = Object.fromEntries(
+        Object.entries(
+          updatedRepositoryConfig.labels || {}
+        ).map(([key, label]) => [
+          key,
+          { ...label, enabled: Boolean(label.enabled) },
+        ])
+      );
+      if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
+        return res.sendStatus(400);
+      }
+      /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
+      const installationClient = await appClient.createInstallationClient(
+        res.locals
+      );
+      if (!installationClient.canWrite("single_file")) {
+        return res.sendStatus(403);
+      }
+      const repositoryClient = installationClient.createRepositoryClient(
+        res.locals
+      );
+      res.locals.config = await repositoryClient.mergeConfig({
+        repositoryConfig: res.locals.config.json,
+        repositoryConfigYaml: res.locals.config.yaml,
+        sha,
+        updatedRepositoryConfig,
+      });
+
+      res.redirect(`/${res.locals.repository.full_name}`);
+    })
+  );
+
+  app.use(function cacheHeaders(req, res, next) {
+    res.set("Cache-Control", "max-age=0, private, must-revalidate");
+    next();
+  });
 
   app.get(
     "/:owner",
@@ -203,76 +239,6 @@ function WebApp({ config, appClient }) {
   );
 
   app.get("/:owner/:repo", (req, res) => res.render("repo"));
-
-  app.post(
-    "/:owner/:repo",
-    asyncMiddleware(async (req, res) => {
-      const updatedRepositoryConfig = req.body;
-      updatedRepositoryConfig.labels = Object.fromEntries(
-        Object.entries(updatedRepositoryConfig.labels || {}).map(([key, label]) => [
-          key,
-          { ...label, enabled: Boolean(label.enabled) },
-        ])
-      );
-      if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
-        return res.sendStatus(400);
-      }
-      defaultsDeep(updatedRepositoryConfig, repositoryConfigDefaults);
-      const { added, deleted, updated } = detailedDiff(
-        res.locals.config,
-        updatedRepositoryConfig
-      );
-      if ([added, deleted, updated].some((o) => !!Object.keys(o).length)) {
-        /* change detected */
-        const configYaml = await req.githubRepositoryClient.getConfigYaml();
-        const configDoc = YAML.parseDocument(configYaml.content);
-
-        traverse(added).forEach(([path, value]) =>
-          configDoc.setIn(path, value)
-        );
-        traverse(deleted).forEach(([path, value]) =>
-          configDoc.deleteIn(path, value)
-        );
-        traverse(updated).forEach(([path, value]) =>
-          configDoc.setIn(path, value)
-        );
-
-        /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
-        const installationClient = await appClient.createInstallationClient(
-          res.locals
-        );
-        if (!installationClient.canWrite("single_file")) {
-          return res.sendStatus(403);
-        }
-        const repositoryClient = installationClient.createRepositoryClient(
-          res.locals
-        );
-        await repositoryClient.setConfigYaml({
-          content: configDoc.toString(),
-          sha: configYaml.sha,
-        });
-        res.locals.config = defaultsDeep(
-          configDoc.toJSON(),
-          repositoryConfigDefaults
-        );
-      }
-
-      res.redirect(`/${res.locals.repository.full_name}`);
-
-      function traverse(value) {
-        return Array.from(traverseInner([], value));
-        function* traverseInner(path, value) {
-          if (typeof value !== "object") {
-            yield [path, value];
-            return;
-          }
-          for (let [childKey, childValue] of Object.entries(value)) {
-            yield* traverseInner([...path, childKey], childValue);
-          }
-        }
-      }
-    })
-  );
 
   return app;
 }

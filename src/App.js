@@ -42,7 +42,6 @@ function App({ config }) {
   const app = express();
 
   app.enable("trust proxy");
-  app.disable("x-powered-by");
 
   app.get("/status", (req, res) =>
     res.status(200).send({ message: "ticket-tagger lives!" })
