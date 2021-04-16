@@ -117,14 +117,12 @@ function WebApp({ config, appClient }) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  app.use(
-    asyncMiddleware(async function prepareInstallations(req, res, next) {
-      if (!req.isAuthenticated()) return next();
-      res.locals.user = req.user;
-      res.locals.installations = await req.githubOAuthClient.listInstallations();
-      next();
-    })
-  );
+  app.use(async function prepareInstallations(req, res, next) {
+    if (!req.isAuthenticated()) return next();
+    res.locals.user = req.user;
+    res.locals.installations = await req.githubOAuthClient.listInstallations();
+    next();
+  });
 
   app.get("/", (req, res) => {
     // redirect loop
@@ -144,110 +142,92 @@ function WebApp({ config, appClient }) {
     res.redirect("/");
   });
 
-  app.param(
-    "owner",
-    asyncMiddleware(async function prepareOwner(req, res, next, owner) {
-      if (!req.isAuthenticated()) return next();
-      res.locals.owner = owner;
-      const { installations } = res.locals;
-      if (!installations.length) {
-        req.logout();
-        return res.redirect("/"); // beware of redirect loop
-      }
-      res.locals.installation = installations.find(
-        (i) => i.account.login === owner
-      );
-      if (!res.locals.installation) {
-        // render not found page
-        return res.redirect(`/${installations[0].account.login}`);
-      }
-      next();
-    })
-  );
+  app.param("owner", async function prepareOwner(req, res, next, owner) {
+    if (!req.isAuthenticated()) return next();
+    res.locals.owner = owner;
+    const { installations } = res.locals;
+    if (!installations.length) {
+      req.logout();
+      return res.redirect("/"); // beware of redirect loop
+    }
+    res.locals.installation = installations.find(
+      (i) => i.account.login === owner
+    );
+    if (!res.locals.installation) {
+      // render not found page
+      return res.redirect(`/${installations[0].account.login}`);
+    }
+    next();
+  });
 
-  app.param(
-    "repo",
-    asyncMiddleware(async function prepareRepo(req, res, next, repo) {
-      if (!req.isAuthenticated()) return next();
-      res.locals.repo = repo;
-      const { owner } = res.locals;
-      res.locals.repository = await req.githubOAuthClient.getRepository({
-        owner,
-        repo,
-      });
-      req.githubRepositoryClient = req.githubOAuthClient.createRepositoryClient(
-        res.locals
-      );
-      res.locals.config = await req.githubRepositoryClient.getConfig();
-      next();
-    })
-  );
+  app.param("repo", async function prepareRepo(req, res, next, repo) {
+    if (!req.isAuthenticated()) return next();
+    res.locals.repo = repo;
+    const { owner } = res.locals;
+    res.locals.repository = await req.githubOAuthClient.getRepository({
+      owner,
+      repo,
+    });
+    req.githubRepositoryClient = req.githubOAuthClient.createRepositoryClient(
+      res.locals
+    );
+    res.locals.config = await req.githubRepositoryClient.getConfig();
+    next();
+  });
 
-  app.post(
-    "/:owner/:repo",
-    asyncMiddleware(async (req, res) => {
-      const { sha, ...updatedRepositoryConfig } = req.body;
-      /* lost update problem check */
-      if (sha !== res.locals.config.sha) {
-        return res.sendStatus(409); // TODO user friendly response
-      }
-      /* form booleans */
-      updatedRepositoryConfig.labels = Object.fromEntries(
-        Object.entries(
-          updatedRepositoryConfig.labels || {}
-        ).map(([key, label]) => [
-          key,
-          { ...label, enabled: Boolean(label.enabled) },
-        ])
-      );
-      if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
-        return res.sendStatus(400);
-      }
-      /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
-      const installationClient = await appClient.createInstallationClient(
-        res.locals
-      );
-      if (!installationClient.canWrite("single_file")) {
-        return res.sendStatus(403); // TODO user friendly response
-      }
-      const repositoryClient = installationClient.createRepositoryClient(
-        res.locals
-      );
-      res.locals.config = await repositoryClient.mergeConfig({
-        repositoryConfig: res.locals.config.json,
-        repositoryConfigYaml: res.locals.config.yaml,
-        sha,
-        updatedRepositoryConfig,
-      });
+  app.post("/:owner/:repo", async function handleUpdateRepository(req, res) {
+    const { sha, ...updatedRepositoryConfig } = req.body;
+    /* lost update problem check */
+    if (sha !== res.locals.config.sha) {
+      return res.sendStatus(409); // TODO user friendly response
+    }
+    /* form booleans */
+    updatedRepositoryConfig.labels = Object.fromEntries(
+      Object.entries(
+        updatedRepositoryConfig.labels || {}
+      ).map(([key, label]) => [
+        key,
+        { ...label, enabled: Boolean(label.enabled) },
+      ])
+    );
+    if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
+      return res.sendStatus(400);
+    }
+    /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
+    const installationClient = await appClient.createInstallationClient(
+      res.locals
+    );
+    if (!installationClient.canWrite("single_file")) {
+      return res.sendStatus(403); // TODO user friendly response
+    }
+    const repositoryClient = installationClient.createRepositoryClient(
+      res.locals
+    );
+    res.locals.config = await repositoryClient.mergeConfig({
+      repositoryConfig: res.locals.config.json,
+      repositoryConfigYaml: res.locals.config.yaml,
+      sha,
+      updatedRepositoryConfig,
+    });
 
-      res.redirect(`/${res.locals.repository.full_name}`);
-    })
-  );
+    res.redirect(`/${res.locals.repository.full_name}`);
+  });
 
   app.use(function cacheHeaders(req, res, next) {
     res.set("Cache-Control", "max-age=0, private, must-revalidate");
     next();
   });
 
-  app.get(
-    "/:owner",
-    asyncMiddleware(async function handleListRepositories(req, res) {
-      res.locals.repositories = await req.githubOAuthClient.listRepositoriesByInstallationId(
-        { installationId: res.locals.installation.id }
-      );
-      res.render("owner");
-    })
-  );
+  app.get("/:owner", async function handleListRepositories(req, res) {
+    res.locals.repositories = await req.githubOAuthClient.listRepositoriesByInstallationId(
+      { installationId: res.locals.installation.id }
+    );
+    res.render("owner");
+  });
 
   app.get("/:owner/:repo", (req, res) => res.render("repo"));
 
   return app;
-}
-
-function asyncMiddleware(middleware) {
-  return function innerAsyncMiddleware(req, res, next, ...args) {
-    return Promise.resolve(middleware(req, res, next, ...args)).catch(next);
-  };
 }
 
 function ensureAuthenticated() {
