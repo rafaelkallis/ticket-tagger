@@ -41,7 +41,7 @@
     "deep-object-diff": "1.1.0",
     "dotenv": "8.2.0",
     "envalid": "7.1.0",
-    "express": "4.17.1",
+    "express": "5.0.0-alpha.8",
     "express-session": "1.17.1",
     "fasttext": "1.0.0",
     "joi": "17.4.0",
