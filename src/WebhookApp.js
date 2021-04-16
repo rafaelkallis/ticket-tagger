@@ -45,7 +45,7 @@ function WebhookApp({ config, classifier, appClient }) {
     });
 
     const repositoryConfig = installationClient.canRead("single_file")
-      ? await repositoryClient.getConfig()
+      ? await repositoryClient.getConfig().then(({ json }) => json)
       : repositoryConfigDefaults;
 
     /* predict label */

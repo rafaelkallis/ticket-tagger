@@ -187,8 +187,9 @@ function WebApp({ config, appClient }) {
     "/:owner/:repo",
     asyncMiddleware(async (req, res) => {
       const { sha, ...updatedRepositoryConfig } = req.body;
+      /* lost update problem check */
       if (sha !== res.locals.config.sha) {
-        return res.sendStatus(409);
+        return res.sendStatus(409); // TODO user friendly response
       }
       /* form booleans */
       updatedRepositoryConfig.labels = Object.fromEntries(
@@ -207,7 +208,7 @@ function WebApp({ config, appClient }) {
         res.locals
       );
       if (!installationClient.canWrite("single_file")) {
-        return res.sendStatus(403);
+        return res.sendStatus(403); // TODO user friendly response
       }
       const repositoryClient = installationClient.createRepositoryClient(
         res.locals
