@@ -400,7 +400,11 @@ class GitHubRepositoryClient extends GitHubClient {
     );
     if (![added, deleted, updated].some((o) => !!Object.keys(o).length)) {
       /* no change detected */
-      return;
+      return {
+        json: repositoryConfig,
+        yaml: repositoryConfigYaml,
+        sha,
+      };
     }
     const yamlDoc = YAML.parseDocument(repositoryConfigYaml);
 

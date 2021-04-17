@@ -24,6 +24,7 @@
 const path = require("path");
 const { callbackify } = require("util");
 const express = require("express");
+const helmet = require("helmet");
 const session = require("express-session");
 const MongoSessionStore = require("connect-mongo");
 const mongoose = require("mongoose");
@@ -85,6 +86,18 @@ function WebApp({ config, appClient }) {
 
   app.set("view engine", "njk");
 
+  /* security https://helmetjs.github.io/ */
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          "img-src": ["'self'", "avatars.githubusercontent.com"],
+        },
+      },
+    })
+  );
+
   // https://expressjs.com/en/starter/static-files.html
   app.use(express.static(path.resolve(__dirname, "../dist")));
 
@@ -118,24 +131,40 @@ function WebApp({ config, appClient }) {
   app.use(passport.session());
 
   app.use(async function prepareInstallations(req, res, next) {
-    if (!req.isAuthenticated()) return next();
-    res.locals.user = req.user;
-    res.locals.installations = await req.githubOAuthClient.listInstallations();
+    if (req.isAuthenticated()) {
+      res.locals.user = req.user;
+      res.locals.installations = await req.githubOAuthClient.listInstallations();
+    }
     next();
   });
 
   app.get("/", (req, res) => {
     // redirect loop
-    if (req.isAuthenticated()) return res.redirect(`/${req.user.login}`);
-    res.render("index");
+    if (!req.isAuthenticated()) return res.render("index");
+    if (req.query.setup_action === "install") {
+      const installation = res.locals.installations.find(
+        (i) => i.id === req.query.installation_id
+      );
+      if (!installation) return res.redirect("/404");
+      return res.redirect(`/${installation.account.login}?new=true`);
+    }
+    res.redirect(`/${req.user.login}`);
   });
+
   app.get("/login", passport.authenticate("github"));
 
   app.get("/auth/callback", passport.authenticate("github"), (req, res) => {
     res.redirect("/");
   });
 
-  app.use(ensureAuthenticated({ config }));
+  app.use(function ensureAuthenticated(req, res, next) {
+    if (!req.isAuthenticated()) {
+      console.log("not authenticated!");
+      req.session.returnTo = req.originalUrl;
+      return res.redirect("/login");
+    }
+    return next();
+  });
 
   app.post("/logout", (req, res) => {
     req.logout();
@@ -143,11 +172,11 @@ function WebApp({ config, appClient }) {
   });
 
   app.param("owner", async function prepareOwner(req, res, next, owner) {
-    if (!req.isAuthenticated()) return next();
+    if (!req.isAuthenticated()) throw new Error("expected authenticated user");
     res.locals.owner = owner;
     const { installations } = res.locals;
     if (!installations.length) {
-      req.logout();
+      req.logout(); // TODO better handle
       return res.redirect("/"); // beware of redirect loop
     }
     res.locals.installation = installations.find(
@@ -161,7 +190,7 @@ function WebApp({ config, appClient }) {
   });
 
   app.param("repo", async function prepareRepo(req, res, next, repo) {
-    if (!req.isAuthenticated()) return next();
+    if (!req.isAuthenticated()) throw new Error("expected authenticated user");
     res.locals.repo = repo;
     const { owner } = res.locals;
     res.locals.repository = await req.githubOAuthClient.getRepository({
@@ -179,7 +208,7 @@ function WebApp({ config, appClient }) {
     const { sha, ...updatedRepositoryConfig } = req.body;
     /* lost update problem check */
     if (sha !== res.locals.config.sha) {
-      return res.sendStatus(409); // TODO user friendly response
+      return res.status(409).render("repo", { errors: { conflict: true } });
     }
     /* form booleans */
     updatedRepositoryConfig.labels = Object.fromEntries(
@@ -191,14 +220,14 @@ function WebApp({ config, appClient }) {
       ])
     );
     if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
-      return res.sendStatus(400);
+      return res.status(400).render("repo", { errors: { validation: true } });
     }
     /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
     const installationClient = await appClient.createInstallationClient(
       res.locals
     );
     if (!installationClient.canWrite("single_file")) {
-      return res.sendStatus(403); // TODO user friendly response
+      return res.status(403).render("repo", { errors: { permissions: true } });
     }
     const repositoryClient = installationClient.createRepositoryClient(
       res.locals
@@ -210,7 +239,7 @@ function WebApp({ config, appClient }) {
       updatedRepositoryConfig,
     });
 
-    res.redirect(`/${res.locals.repository.full_name}`);
+    res.render("repo", { updated: true });
   });
 
   app.use(function cacheHeaders(req, res, next) {
@@ -222,23 +251,12 @@ function WebApp({ config, appClient }) {
     res.locals.repositories = await req.githubOAuthClient.listRepositoriesByInstallationId(
       { installationId: res.locals.installation.id }
     );
-    res.render("owner");
+    res.render("owner", { new: req.query.new });
   });
 
   app.get("/:owner/:repo", (req, res) => res.render("repo"));
 
   return app;
-}
-
-function ensureAuthenticated() {
-  return function ensureAuthenticatedInner(req, res, next) {
-    if (!req.isAuthenticated()) {
-      console.log("not authenticated!");
-      req.session.returnTo = req.originalUrl;
-      return res.redirect("/login");
-    }
-    return next();
-  };
 }
 
 module.exports = { WebApp };
