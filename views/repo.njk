@@ -1,5 +1,11 @@
 {% extends "_base.njk" %}
 
+{% block links %}
+{{ super() }}
+<link href="/css/roundslider.min.css" rel="stylesheet" />
+<link href="/css/repo.css" rel="stylesheet" />
+{% endblock %}
+
 {% block body %}
 <div class="color-bg-secondary pt-3 hide-full-screen mb-5">
   <div class="d-flex mb-3 px-3 px-md-4 px-lg-5">
@@ -87,13 +93,34 @@
   </form>
   <div class="Subhead Subhead--spacious">
     <div class="Subhead-heading">Profile</div>
-    <div class="Box">
-      <ul>
-        <li class="Box-row"></li>
-        <li class="Box-row"></li>
-        <li class="Box-row"></li>
-      </ul>
-    </div>
   </div>
+  <p>
+    Ticket tagger labels issues according to your preferences. 
+    Here you can customize the prediction threshold. 
+    A high threshold increases the prediction quality at the expense of labelling less issues. 
+    A low threshold allows Ticket tagger to label more issues at the expense of more frequent labelling mistakes.
+  </p>
+  <form action="/{{ repository.full_name }}" method="POST">
+    <div class="Box">
+      <input type="hidden" name="sha" value="{{ config.sha }}" />
+  
+      <input id="threshold-slider" name="threshold" type="hidden" min="0" max="100" value="55">
+      <div id="arc-slider" class="rslider mt-4 mx-auto"></div>
+      <div class="text-center">
+        <p id="threshold-name" class="h3">balanced</p>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <button type="submit" class="btn btn-primary">Save changes</button>
+      <a class="btn btn-invisible" href="/{{ installation.account.login }}">Cancel</a>
+    </div>
+  </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/js/roundslider.min.js"></script>
+<script src="/js/repo.js"></script>
 {% endblock %}
