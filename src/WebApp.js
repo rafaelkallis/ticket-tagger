@@ -211,14 +211,21 @@ function WebApp({ config, appClient }) {
       return res.status(409).render("repo", { errors: { conflict: true } });
     }
     /* form booleans */
-    updatedRepositoryConfig.labels = Object.fromEntries(
-      Object.entries(
-        updatedRepositoryConfig.labels || {}
-      ).map(([key, label]) => [
-        key,
-        { ...label, enabled: Boolean(label.enabled) },
-      ])
-    );
+    if (updatedRepositoryConfig.enabled !== undefined) {
+      updatedRepositoryConfig.enabled = Boolean(
+        updatedRepositoryConfig.enabled
+      );
+    }
+    if (updatedRepositoryConfig.labels !== undefined) {
+      updatedRepositoryConfig.labels = Object.fromEntries(
+        Object.entries(
+          updatedRepositoryConfig.labels || {}
+        ).map(([key, label]) => [
+          key,
+          { ...label, enabled: Boolean(label.enabled) },
+        ])
+      );
+    }
     if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
       return res.status(400).render("repo", { errors: { validation: true } });
     }

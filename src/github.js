@@ -32,6 +32,7 @@ const { CacheRecord } = require("./entities/CacheRecord");
 
 const repositoryConfigSchema = Joi.object({
   version: Joi.number().allow(3),
+  enabled: Joi.boolean(),
   labels: Joi.object().pattern(
     Joi.string().valid("bug", "enhancement", "question"),
     {
@@ -43,6 +44,7 @@ const repositoryConfigSchema = Joi.object({
 
 const repositoryConfigDefaults = {
   version: 3,
+  enabled: true,
   labels: Object.fromEntries(
     ["bug", "enhancement", "question"].map((label) => [
       label,
@@ -360,7 +362,15 @@ class GitHubRepositoryClient extends GitHubClient {
     const body = await this._fetchJsonConditional(url, {
       headers: this._headers(),
     });
-    if (!body) return null;
+
+    if (!body) {
+      return {
+        yaml: "",
+        json: cloneDeep(repositoryConfigDefaults),
+        sha: null,
+        exists: false,
+      };
+    }
     if (body.type !== "file") throw new Error("expected file");
     if (body.encoding !== "base64") throw new Error("expected base64 encoding");
 
@@ -373,7 +383,7 @@ class GitHubRepositoryClient extends GitHubClient {
       json = {};
     }
     json = defaultsDeep(json, repositoryConfigDefaults);
-    return { yaml, json, sha: body.sha };
+    return { yaml, json, sha: body.sha, exists: true };
   }
 
   /**
