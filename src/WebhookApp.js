@@ -74,11 +74,7 @@ function WebhookApp({ config, classifier, appClient }) {
     telemetry.event("Installed");
   });
 
-  const app = express();
-
-  app.use(createNodeMiddleware(webhooks, { path: "/webhook" }));
-
-  return app;
+  return express().use(createNodeMiddleware(webhooks, { path: "/webhook" }));
 }
 
 module.exports = { WebhookApp };
