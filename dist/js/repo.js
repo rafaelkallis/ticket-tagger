@@ -1,9 +1,12 @@
+const initialThreshold = $("#threshold-value").val();
+onThresholdChange(initialThreshold);
+
 $("#arc-slider").roundSlider({
     // sliderType: "min-range",
     circleShape: "custom-quarter",
     animation: false,
     // svgMode: true,
-    value: $("#threshold-slider").val(),
+    value: initialThreshold,
     startAngle: 45,
     showTooltip: false,
     radius: 350,
@@ -14,18 +17,25 @@ $("#arc-slider").roundSlider({
     step: 1,
 });
 
-$("#arc-slider").on("update", function (e) {
-    $("#threshold-slider").val(e.value);
-    const label = e.value < 20
-        ? "highest quantity"
-        : e.value < 40
-            ? "high quantity"
-            : e.value < 60
-                ? "balanced"
-                : e.value < 80
-                    ? "high quality"
-                    : "highest quality";
-    $("#threshold-name").text(label);
-});
+$("#arc-slider").on("update", e => onThresholdChange(e.value));
+
+function onThresholdChange(t) {
+  t = Number(t);
+  $("#threshold-value").val(t);
+  $("#threshold-perc").text(t);
+  const name = t < 20
+      ? "Highest quantity"
+      : t < 40
+          ? "High quantity"
+          : t < 60
+              ? "Balanced"
+              : t < 80
+                  ? "High quality"
+                  : "Highest quality";
+  $("#threshold-text").text(name);
+
+  $("#class-prob-perc").text("" + Math.floor(100 * (1 - Math.pow(t / 100, 2))) + "%");
+  $("#misclass-prob-perc").text("" + Math.floor(100 * (1 - (t / 100 + 4) / 5)) + "%");
+}
 
 $('input[name=arc-slider]').remove();
