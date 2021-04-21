@@ -1,27 +1,24 @@
-{% extends "_base.njk" %}
-
-{% block links %}
-{{ super() }}
+{% extends "_base.njk" %} {% block links %} {{ super() }}
 <link href="/css/roundslider.min.css" rel="stylesheet" />
 <link href="/css/repo.css" rel="stylesheet" />
-{% endblock %}
-
-{% block body %}
+{% endblock %} {% block body %}
 <div class="color-bg-secondary pt-3 hide-full-screen mb-5">
   <div class="d-flex mb-3 px-3 px-md-4 px-lg-5">
     <div class="flex-auto min-width-0 width-fit mr-3">
-      <h1 class=" d-flex flex-wrap flex-items-center break-word f3 text-normal">
-        {% if repository.private %}
-        {% octicon "lock", class="color-text-secondary mr-2", width="16" %}
-        {% else %}
-        {% octicon "repo", class="color-text-secondary mr-2", width="16" %}
-        {% endif %}
+      <h1 class="d-flex flex-wrap flex-items-center break-word f3 text-normal">
+        {% if repository.private %} {% octicon "lock",
+        class="color-text-secondary mr-2", width="16" %} {% else %} {% octicon
+        "repo", class="color-text-secondary mr-2", width="16" %} {% endif %}
         <span class="author flex-self-stretch">
-          <a class="url fn" href="/{{ repository.owner.login }}">{{ repository.owner.login }}</a>
+          <a class="url fn" href="/{{ repository.owner.login }}"
+            >{{ repository.owner.login }}</a
+          >
         </span>
         <span class="mx-1 flex-self-stretch color-text-secondary">/</span>
         <strong class="mr-2 flex-self-stretch">
-          <a href="/{{ repository.owner.login }}/{{ repository.name }}">{{ repository.name }}</a>
+          <a href="/{{ repository.owner.login }}/{{ repository.name }}"
+            >{{ repository.name }}</a
+          >
         </strong>
       </h1>
     </div>
@@ -29,39 +26,40 @@
 
   <div class="container-md clearfix p-4">
     {% if updated %}
-    <div class="flash">
-      {% octicon "check" %}Configuration updated.
-    </div>
-    {% endif %}
-    {% if errors.conflict %}
+    <div class="flash">{% octicon "check" %}Configuration updated.</div>
+    {% endif %} {% if errors.conflict %}
     <div class="flash mt-3 flash-warn">
-      {% octicon "alert" %}The configuration changed before you submitted, update was aborted to prevent data loss. Please retry.
+      {% octicon "alert" %}The configuration changed before you submitted,
+      update was aborted to prevent data loss. Please retry.
     </div>
-    {% endif %}
-    {% if errors.validation %}
+    {% endif %} {% if errors.validation %}
     <div class="flash mt-3 flash-warn">
-      {% octicon "alert" %}The submitted configuration failed the validation check.
+      {% octicon "alert" %}The submitted configuration failed the validation
+      check.
     </div>
-    {% endif %}
-    {% if errors.permissions %}
+    {% endif %} {% if errors.permissions %}
     <div class="flash mt-3 flash-warn">
-      {% octicon "alert" %}Ticket Tagger has insufficient permissions. Please <a href="https://github.com/settings/installations/{{ installation.id }}">revise your configuration</a>.
+      {% octicon "alert" %}Ticket Tagger has insufficient permissions. Please
+      <a href="https://github.com/settings/installations/{{ installation.id }}"
+        >revise your configuration</a
+      >.
     </div>
-    {% endif %}
-    {% if not config.exists %}
+    {% endif %} {% if not config.exists %}
     <div class="flash mt-3 flash-info clearfix d-flex flex-items-center">
       <div class="col-9 float-left">
-        You can customize the behaviour of Ticket Tagger using a configuration file in your repository.
-        Changes performed here will be reflected in the configuration file.
+        You can customize the behaviour of Ticket Tagger using a configuration
+        file in your repository. Changes performed here will be reflected in the
+        configuration file.
       </div>
       <div class="col-3 float-right">
         <form action="/{{ repository.full_name }}" method="POST">
-          <button class="btn btn-primary primary flash-action" type="submit">Create config file</button>
+          <button class="btn btn-primary primary flash-action" type="submit">
+            Create config file
+          </button>
         </form>
       </div>
     </div>
-    {% endif %}
-    {# general section #}
+    {% endif %} {# general section #}
     <div class="Subhead Subhead--spacious">
       <div class="Subhead-heading">General</div>
     </div>
@@ -78,13 +76,23 @@
             <div class="form-group">
               <div class="form-checkbox">
                 <label for="check-enabled">Issue labelling</label>
-                <input 
-                  id="check-enabled" 
-                  type="checkbox" 
-                  name="enabled" 
-                  {% if config.json.enabled %}checked{% endif %} />
-                <span class="status-indicator js-status-indicator">{% octicon "check", width="16" %}</span>
-                <p class="note">Enables or disables issue labelling on the repository.</p>
+                <input
+                  id="check-enabled"
+                  type="checkbox"
+                  name="enabled"
+                  {%
+                  if
+                  config.json.enabled
+                  %}checked{%
+                  endif
+                  %}
+                />
+                <span class="status-indicator js-status-indicator"
+                  >{% octicon "check", width="16" %}</span
+                >
+                <p class="note">
+                  Enables or disables issue labelling on the repository.
+                </p>
               </div>
             </div>
           </li>
@@ -92,7 +100,9 @@
       </div>
       <div class="mt-3">
         <button type="submit" class="btn btn-primary">Save changes</button>
-        <a class="btn btn-invisible" href="/{{ installation.account.login }}">Cancel</a>
+        <a class="btn btn-invisible" href="/{{ installation.account.login }}"
+          >Cancel</a
+        >
       </div>
     </form>
 
@@ -106,45 +116,76 @@
       </div>
     </div>
     <p>
-      Ticket Tagger labels issues according to your preferences. 
-      Here you can customize the classification threshold. 
-      A high threshold increases the prediction quality at the expense of less frequent labelling of issues. 
-      A low threshold allows Ticket Tagger to label more issues at the expense of having more frequent labelling mistakes.
-      Learn more about <a class="" href="https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall#precision-and-recall:-a-tug-of-war">classification thresholding</a>.
+      Ticket Tagger labels issues according to your preferences. Here you can
+      customize the classification threshold. A high threshold increases the
+      prediction quality at the expense of less frequent labelling of issues. A
+      low threshold allows Ticket Tagger to label more issues at the expense of
+      having more frequent labelling mistakes. Learn more about
+      <a
+        class=""
+        href="https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall#precision-and-recall:-a-tug-of-war"
+        >classification thresholding</a
+      >.
     </p>
     <form action="/{{ repository.full_name }}" method="POST">
       <div class="Box mt-4">
         <input type="hidden" name="sha" value="{{ config.sha }}" />
 
-        <input id="threshold-value" name="threshold" type="hidden" min="0" max="100" value="65">
+        <input
+          id="threshold-value"
+          name="threshold"
+          type="hidden"
+          min="0"
+          max="100"
+          value="65"
+        />
         <div id="arc-slider" class="rslider mt-4 mx-auto"></div>
       </div>
 
-      {#  #}
+      {# #}
 
       <div class="d-flex flex-column flex-md-row mt-4">
-        <div class="col-12 py-3 px-4 col-md-4 mb-md-0 mb-3 mr-md-3 color-bg-tertiary rounded-1">
-          <h4 class="f5 text-normal color-text-secondary">Selected threshold</h4>
+        <div
+          class="col-12 py-3 px-4 col-md-4 mb-md-0 mb-3 mr-md-3 color-bg-tertiary rounded-1"
+        >
+          <h4 class="f5 text-normal color-text-secondary">
+            Selected threshold
+          </h4>
           <span id="threshold-perc" class="f2 text-bold d-block mt-1"></span>
           <span id="threshold-text" class="f6 mt-1"></span>
         </div>
 
-        <div class="col-md-4 mr-md-3 col-12 py-3 px-4 mb-md-0 mb-3 color-bg-tertiary rounded-1">
-          <h4 class="f5 text-normal color-text-secondary">Classification probability</h4>
+        <div
+          class="col-md-4 mr-md-3 col-12 py-3 px-4 mb-md-0 mb-3 color-bg-tertiary rounded-1"
+        >
+          <h4 class="f5 text-normal color-text-secondary">
+            Classification probability
+          </h4>
           <span id="class-prob-perc" class="f2 text-bold d-block mt-1"></span>
           {# <span id="class-prob-text" class="f6 mt-1"></span> #}
         </div>
 
-        <div class="col-md-4 col-12 py-3 px-4 mb-md-0 mb-3 color-bg-tertiary rounded-1">
-          <h4 class="f5 text-normal color-text-secondary mb-2">Misclassification probability</h4>
-          <span id="misclass-prob-perc" class="f2 text-bold d-block mt-1"></span>
+        <div
+          class="col-md-4 col-12 py-3 px-4 mb-md-0 mb-3 color-bg-tertiary rounded-1"
+        >
+          <h4 class="f5 text-normal color-text-secondary mb-2">
+            Misclassification probability
+          </h4>
+          <span
+            id="misclass-prob-perc"
+            class="f2 text-bold d-block mt-1"
+          ></span>
           {# <span id="misclass-prob-text" class="f6 mt-1"></span> #}
         </div>
       </div>
 
       <div class="mt-3">
-        <button type="submit" class="btn btn-primary" disabled>Save changes</button>
-        <a class="btn btn-invisible" href="/{{ installation.account.login }}">Cancel</a>
+        <button type="submit" class="btn btn-primary" disabled>
+          Save changes
+        </button>
+        <a class="btn btn-invisible" href="/{{ installation.account.login }}"
+          >Cancel</a
+        >
       </div>
     </form>
 
@@ -160,30 +201,43 @@
     <form action="/{{ repository.full_name }}" method="POST">
       <input type="hidden" name="sha" value="{{ config.sha }}" />
       <div class="Box">
-        {# <input type="hidden" name="labels.version" value={{ config}} > #}
+        {# <input type="hidden" name="labels.version" value="{{" config}} /> #}
         <ul>
           {% for label, labelConfig in config.json.labels %}
           <li class="Box-row py-0">
             <div class="form-group">
               <div class="form-checkbox">
-                <label for="check-label-{{ label }}">{{ label | capitalize }}</label>
-                <input 
-                  id="check-label-{{ label }}" 
-                  type="checkbox" 
-                  name="labels[{{ label }}][enabled]" 
-                  {% if labelConfig.enabled %}checked{% endif %} />
-                <span class="status-indicator js-status-indicator">{% octicon "check", width="16" %}</span>
+                <label for="check-label-{{ label }}"
+                  >{{ label | capitalize }}</label
+                >
+                <input
+                  id="check-label-{{ label }}"
+                  type="checkbox"
+                  name="labels[{{ label }}][enabled]"
+                  {%
+                  if
+                  labelConfig.enabled
+                  %}checked{%
+                  endif
+                  %}
+                />
+                <span class="status-indicator js-status-indicator"
+                  >{% octicon "check", width="16" %}</span
+                >
                 <p></p>
 
-                <label class="mr-1" for="text-label-{{ label }}">Custom text</label>
-                <input 
+                <label class="mr-1" for="text-label-{{ label }}"
+                  >Custom text</label
+                >
+                <input
                   id="text-label-{{ label }}"
-                  class="form-control input-sm" 
-                  type="text" 
+                  class="form-control input-sm"
+                  type="text"
                   name="labels[{{ label }}][text]"
                   value="{{ labelConfig.text }}"
-                  placeholder="Custom text" 
-                  aria-label="Custom text" />
+                  placeholder="Custom text"
+                  aria-label="Custom text"
+                />
               </div>
             </div>
           </li>
@@ -192,14 +246,16 @@
       </div>
       <div class="mt-3">
         <button type="submit" class="btn btn-primary">Save changes</button>
-        <a class="btn btn-invisible" href="/{{ installation.account.login }}">Cancel</a>
+        <a class="btn btn-invisible" href="/{{ installation.account.login }}"
+          >Cancel</a
+        >
       </div>
     </form>
-
   </div>
-{% endblock %}
+</div>
+{% endblock %} 
 
-{% block scripts %}
+{% block scripts %} 
 {{ super() }}
 <script src="/js/roundslider.min.js"></script>
 <script src="/js/repo.js"></script>

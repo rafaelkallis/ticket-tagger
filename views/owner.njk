@@ -1,4 +1,4 @@
-{% extends "_base.njk" %}
+{% extends "_base.njk" %} 
 
 {% block body %}
 <div class="container-md clearfix p-4">
@@ -6,15 +6,25 @@
   <div class="blankslate blankslate-spacious">
     {% octicon "rocket", height= "53", class= "color-icon-info mb-3" %}
     <h3 class="mb-1">You don't seem to have any repositories added.</h3>
-    <p>Ticket Tagger is an intelligent AI that automatically predicts labels of new issues in your repositories.</p>
-    <a class="btn btn-primary my-3" href="https://github.com/settings/installations/{{ installation.id }}">Add repository</a>
-    <p><a class="btn-link" href="https://github.com/apps/ticket-tagger">Learn more</a></p>
+    <p>
+      Ticket Tagger is an intelligent AI that automatically predicts labels of
+      new issues in your repositories.
+    </p>
+    <a
+      class="btn btn-primary my-3"
+      href="https://github.com/settings/installations/{{ installation.id }}"
+      >Add repository</a
+    >
+    <p>
+      <a class="btn-link" href="https://github.com/apps/ticket-tagger"
+        >Learn more</a
+      >
+    </p>
   </div>
-  {% else %}
-  {% if new %}
+  {% else %} {% if new %}
   <div class="flash mt-3 flash-success">
-    {% octicon "check" %}
-    Successfully installed to <strong>{{ installation.account.login }}</strong>.
+    {% octicon "check" %} Successfully installed to
+    <strong>{{ installation.account.login }}</strong>.
   </div>
   {% endif %}
   <div class="col-12 d-flex width-full py-4 border-bottom color-border-secondary">
@@ -28,17 +38,18 @@
   <ul>
     {% for repository in repositories %}
     <li class="col-12 d-flex width-full py-4 border-bottom color-border-secondary">
-      {# <a href="/{{ repository.full_name  }}">{{ repository.full_name }}</a> #}
       <div class="col-10 col-lg-9 d-inline-block">
         <div class="d-inline-block mb-1">
           <h3 class="wb-break-all">
             <a href="/{{ repository.full_name }}">{{ repository.name }}</a>
             {% if repository.private %}
-            <span class="Label Label--secondary v-align-middle ml-1 mb-1">Private</span>
+            <span class="Label Label--secondary v-align-middle ml-1 mb-1"
+              >Private</span
+            >
             {% endif %}
           </h3>
         </div>
-        {% if repository.description  %}
+        {% if repository.description %}
         <div>
           <p class="col-9 d-inline-block color-text-secondary mb-2 pr-4">
             {{ repository.description }}
@@ -50,5 +61,5 @@
     {% endfor %}
   </ul>
   {% endif %}
-  {% endblock %}
 </div>
+{% endblock %}
