@@ -33,11 +33,7 @@ const { Passport } = require("passport");
 const { Strategy: GitHubStrategy } = require("passport-github");
 const nunjucks = require("nunjucks");
 const nunjucksOcticonsExtension = require("nunjucks-octicons-extension");
-const {
-  GitHubOAuthClient,
-  repositoryConfigSchema,
-  GitHubAppClient,
-} = require("./github");
+const { GitHubOAuthClient, repositoryConfigSchema } = require("./github");
 
 function WebApp({ config, appClient }) {
   const passport = new Passport();
@@ -83,8 +79,6 @@ function WebApp({ config, appClient }) {
   );
 
   const app = express();
-
-  app.locals.githubAppSlug = config.GITHUB_APP_SLUG;
 
   // https://mozilla.github.io/nunjucks/getting-started.html
   const nunjucksEnv = nunjucks.configure(path.resolve(__dirname, "../views"), {
