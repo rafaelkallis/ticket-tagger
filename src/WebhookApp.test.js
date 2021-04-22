@@ -77,7 +77,7 @@ describe("app integration test", () => {
 
     getRepositoryConfigScope = nock("https://api.github.com")
       .get(
-        `/repos/${payload.repository.full_name}/contents/.tickettagger/config.yml`
+        `/repos/${payload.repository.full_name}/contents/.github/tickettagger.yml`
       )
       .matchHeader("Authorization", `token ${installationAccessToken}`)
       .matchHeader("User-Agent", "Ticket-Tagger")
