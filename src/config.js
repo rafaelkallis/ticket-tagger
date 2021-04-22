@@ -86,7 +86,7 @@ const config = envalid.cleanEnv(process.env, {
   MODEL_DIR: envalid.str({
     default: path.join(os.homedir(), ".tickettagger/models"),
   }),
-  CONFIG_FILE_PATH: envalid.str({ default: ".tickettagger/config.yml" }),
+  CONFIG_FILE_PATH: envalid.str({ default: ".github/tickettagger.yml" }),
   RATELIMIT_WINDOW_POINTS: envalid.num({ default: 120 }),
   RATELIMIT_WINDOW_SECONDS: envalid.num({ default: 60 * 10 }),
 });
