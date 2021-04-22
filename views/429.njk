@@ -1,0 +1,14 @@
+{% extends "_base.njk" %} 
+
+{% block body %}
+<div class="container-md clearfix p-4">
+  <div class="blankslate blankslate-spacious">
+    {% octicon "shield-x", height= "53", class= "color-icon-error mb-3" %}
+    <h3 class="mb-1">Rate limit exceeded.</h3>
+    <p>
+      Ticket Tagger is an intelligent AI that automatically predicts labels of
+      new issues in your repositories.
+    </p>
+  </div>
+</div>
+{% endblock %}

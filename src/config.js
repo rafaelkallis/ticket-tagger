@@ -87,6 +87,8 @@ const config = envalid.cleanEnv(process.env, {
     default: path.join(os.homedir(), ".tickettagger/models"),
   }),
   CONFIG_FILE_PATH: envalid.str({ default: ".tickettagger/config.yml" }),
+  RATELIMIT_WINDOW_POINTS: envalid.num({ default: 120 }),
+  RATELIMIT_WINDOW_SECONDS: envalid.num({ default: 60 * 10 }),
 });
 
 fs.mkdirSync(config.DATASET_DIR, { recursive: true });

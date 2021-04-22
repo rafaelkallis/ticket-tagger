@@ -25,6 +25,7 @@ const path = require("path");
 const { callbackify } = require("util");
 const express = require("express");
 const helmet = require("helmet");
+const { RateLimiterMemory } = require("rate-limiter-flexible");
 const session = require("express-session");
 const MongoSessionStore = require("connect-mongo");
 const mongoose = require("mongoose");
@@ -100,6 +101,26 @@ function WebApp({ config, appClient }) {
 
   // https://expressjs.com/en/starter/static-files.html
   app.use(express.static(path.resolve(__dirname, "../dist")));
+
+  const limiter = new RateLimiterMemory({
+    points: config.RATELIMIT_WINDOW_POINTS,
+    duration: config.RATELIMIT_WINDOW_SECONDS,
+  });
+  app.use(async function rateLimit(req, res, next) {
+    res.setHeader("RateLimit-Limit", String(config.RATELIMIT_WINDOW_POINTS));
+    const [isSuccess, { remainingPoints, msBeforeNext }] = await limiter
+      .consume(req.ip, 1)
+      .then((res) => [true, res])
+      .catch((res) => [false, res]);
+
+    res.setHeader("RateLimit-Remaining", String(remainingPoints));
+    res.setHeader("RateLimit-Reset", String(Math.floor(msBeforeNext / 1000)));
+    if (isSuccess) {
+      next();
+    } else {
+      res.status(429).render("429");
+    }
+  });
 
   app.use(
     session({
