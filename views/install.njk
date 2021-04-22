@@ -1,0 +1,18 @@
+{% extends "_base.njk" %} 
+
+{% block body %}
+<div class="container-md clearfix p-4">
+  <div class="blankslate blankslate-spacious">
+    {% octicon "rocket", height= "53", class= "color-icon-info mb-3" %}
+    <h3 class="mb-1">Let's get Ticket Tagger installed.</h3>
+    <p>
+      Ticket Tagger is an intelligent AI that automatically predicts labels of
+      new issues in your repositories.
+    </p>
+    <a class="btn btn-primary my-3" href="{{ app.html_url }}/installations/new">Install</a>
+    <p>
+      <a class="btn-link" href="{{ app.html_url }}">Learn more</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

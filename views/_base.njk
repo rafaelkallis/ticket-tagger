@@ -30,8 +30,8 @@
             <div class="dropdown-caret"></div>
           </summary>
           <div class="dropdown-menu dropdown-menu-sw">
-            <a class="dropdown-item" href="https://github.com/settings/installations/{{ installation.id }}">Add repository</a>
-            <a class="dropdown-item" href="https://github.com/apps/ticket-tagger/installations/new">Add account</a>
+            <a class="dropdown-item" href="{{ installation.html_url }}">Add repository</a>
+            <a class="dropdown-item" href="{{ app.html_url }}/installations/new">Add account</a>
           </div>
         </details>
       </div>
@@ -71,6 +71,16 @@
       {% endif %}
     </div>
   </header>
+  {% if suspended %}
+  <div class="flash flash-full flash-warn">
+    <div class="container-lg">
+      You have suspended Ticket Tagger on this account.
+      <a href="{{ installation.html_url }}" class="btn btn-primary primary flash-action">
+        Unsuspend
+      </a>
+    </div>
+  </div>
+  {% endif %}
   {% block body %}
   {% endblock %}
   {# <footer class="footer container-xl width-full p-responsive" role="contentinfo">

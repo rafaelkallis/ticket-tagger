@@ -92,7 +92,7 @@ class GitHubClient {
 
   _headers(headers = {}) {
     return {
-      "User-Agent": "Ticket-Tagger",
+      "User-Agent": this.config.USER_AGENT,
       Accept: "application/vnd.github.v3+json",
       ...headers,
     };
@@ -228,6 +228,17 @@ class GitHubOAuthClient extends GitHubClient {
 class GitHubAppClient extends GitHubClient {
   constructor({ config }) {
     super({ config, cacheKeyComputer: new CacheKeyComputer() });
+  }
+
+  /**
+   * Get the authenticated app.
+   * @see https://docs.github.com/en/rest/reference/apps#get-the-authenticated-app
+   */
+  async getApp() {
+    const url = this._url("/app");
+    return await this._fetchJsonConditional(url, {
+      headers: this._headers(),
+    });
   }
 
   async createInstallationClient({ installation }) {
@@ -367,7 +378,7 @@ class GitHubRepositoryClient extends GitHubClient {
       return {
         yaml: "",
         json: cloneDeep(repositoryConfigDefaults),
-        sha: null,
+        sha: "",
         exists: false,
       };
     }

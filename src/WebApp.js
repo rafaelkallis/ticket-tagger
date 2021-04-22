@@ -33,7 +33,11 @@ const { Passport } = require("passport");
 const { Strategy: GitHubStrategy } = require("passport-github");
 const nunjucks = require("nunjucks");
 const nunjucksOcticonsExtension = require("nunjucks-octicons-extension");
-const { GitHubOAuthClient, repositoryConfigSchema } = require("./github");
+const {
+  GitHubOAuthClient,
+  repositoryConfigSchema,
+  GitHubAppClient,
+} = require("./github");
 
 function WebApp({ config, appClient }) {
   const passport = new Passport();
@@ -43,6 +47,8 @@ function WebApp({ config, appClient }) {
         clientID: config.GITHUB_CLIENT_ID,
         clientSecret: config.GITHUB_CLIENT_SECRET,
         callbackURL: config.SERVER_BASE_URL + "/auth/callback",
+        scope: ["user"],
+        userAgent: config.USER_AGENT,
         passReqToCallback: true,
       },
       callbackify(async function verify(
@@ -77,6 +83,8 @@ function WebApp({ config, appClient }) {
   );
 
   const app = express();
+
+  app.locals.githubAppSlug = config.GITHUB_APP_SLUG;
 
   // https://mozilla.github.io/nunjucks/getting-started.html
   const nunjucksEnv = nunjucks.configure(path.resolve(__dirname, "../views"), {
@@ -151,20 +159,27 @@ function WebApp({ config, appClient }) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  app.use(async function prepareApp(req, res, next) {
+    const app = await appClient.getApp();
+    Object.assign(res.locals, { app });
+    return next();
+  });
+
   app.use(async function prepareInstallations(req, res, next) {
     if (req.isAuthenticated()) {
-      res.locals.user = req.user;
-      res.locals.installations = await req.githubOAuthClient.listInstallations();
+      Object.assign(res.locals, {
+        user: req.user,
+        installations: await req.githubOAuthClient.listInstallations(),
+      });
     }
-    next();
+    return next();
   });
 
   app.get("/", (req, res) => {
-    // redirect loop
     if (!req.isAuthenticated()) return res.render("index");
     if (req.query.setup_action === "install") {
       const installation = res.locals.installations.find(
-        (i) => i.id === req.query.installation_id
+        (i) => String(i.id) === req.query.installation_id
       );
       if (!installation) return res.redirect("/404");
       return res.redirect(`/${installation.account.login}?new=true`);
@@ -187,6 +202,10 @@ function WebApp({ config, appClient }) {
     return next();
   });
 
+  app.get("/install", (req, res) => res.render("install"));
+  app.get("/404", (req, res) => res.render("404"));
+  app.get("/429", (req, res) => res.render("429"));
+
   app.post("/logout", (req, res) => {
     req.logout();
     res.redirect("/");
@@ -194,35 +213,41 @@ function WebApp({ config, appClient }) {
 
   app.param("owner", async function prepareOwner(req, res, next, owner) {
     if (!req.isAuthenticated()) throw new Error("expected authenticated user");
-    res.locals.owner = owner;
     const { installations } = res.locals;
     if (!installations.length) {
-      req.logout(); // TODO better handle
-      return res.redirect("/"); // beware of redirect loop
+      return res.redirect("/install");
     }
-    res.locals.installation = installations.find(
-      (i) => i.account.login === owner
-    );
-    if (!res.locals.installation) {
-      // render not found page
+    const installation = installations.find((i) => i.account.login === owner);
+    if (!installation) {
       return res.redirect(`/${installations[0].account.login}`);
     }
-    next();
+    Object.assign(res.locals, {
+      owner,
+      installation,
+      suspended: Boolean(installation.suspended_at),
+    });
+    return next();
+  });
+
+  app.post("/:owner/unsuspend", async function handleUnsuspend(req, res) {
+    const { owner, installation } = res.locals;
+    await appClient.unsuspendInstallation({ installation });
+    res.redirect(`/${owner}`);
   });
 
   app.param("repo", async function prepareRepo(req, res, next, repo) {
     if (!req.isAuthenticated()) throw new Error("expected authenticated user");
-    res.locals.repo = repo;
     const { owner } = res.locals;
-    res.locals.repository = await req.githubOAuthClient.getRepository({
+    const repository = await req.githubOAuthClient.getRepository({
       owner,
       repo,
     });
-    req.githubRepositoryClient = req.githubOAuthClient.createRepositoryClient(
-      res.locals
-    );
-    res.locals.config = await req.githubRepositoryClient.getConfig();
-    next();
+    req.githubRepositoryClient = req.githubOAuthClient.createRepositoryClient({
+      repository,
+    });
+    const config = await req.githubRepositoryClient.getConfig();
+    Object.assign(res.locals, { repo, repository, config });
+    return next();
   });
 
   app.post("/:owner/:repo", async function handleUpdateRepository(req, res) {
@@ -272,7 +297,7 @@ function WebApp({ config, appClient }) {
 
   app.use(function cacheHeaders(req, res, next) {
     res.set("Cache-Control", "max-age=0, private, must-revalidate");
-    next();
+    return next();
   });
 
   app.get("/:owner", async function handleListRepositories(req, res) {
