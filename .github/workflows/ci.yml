@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        ubuntu-version: [ubuntu-18.04, ubuntu-latest]
+        ubuntu-version: [ubuntu-18.04, ubuntu-20.04]
         node-version: [12.x, 14.x]
     runs-on: ${{ matrix.ubuntu-version }}
 
