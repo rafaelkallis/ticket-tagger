@@ -103,21 +103,23 @@ function WebApp({ config, appClient }) {
   );
 
   // https://expressjs.com/en/starter/static-files.html
-  app.use(express.static(path.resolve(__dirname, "../dist")));
+  app.use(
+    express.static(path.resolve(__dirname, "../dist"), { maxAge: "60s" })
+  );
 
   const limiter = new RateLimiterMemory({
     points: config.RATELIMIT_WINDOW_POINTS,
     duration: config.RATELIMIT_WINDOW_SECONDS,
   });
   app.use(async function rateLimit(req, res, next) {
-    res.setHeader("RateLimit-Limit", String(config.RATELIMIT_WINDOW_POINTS));
+    res.set("RateLimit-Limit", String(config.RATELIMIT_WINDOW_POINTS));
     const [isSuccess, { remainingPoints, msBeforeNext }] = await limiter
       .consume(req.ip, 1)
       .then((res) => [true, res])
       .catch((res) => [false, res]);
 
-    res.setHeader("RateLimit-Remaining", String(remainingPoints));
-    res.setHeader("RateLimit-Reset", String(Math.floor(msBeforeNext / 1000)));
+    res.set("RateLimit-Remaining", String(remainingPoints));
+    res.set("RateLimit-Reset", String(Math.floor(msBeforeNext / 1000)));
     if (isSuccess) {
       next();
     } else {
@@ -154,6 +156,11 @@ function WebApp({ config, appClient }) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  app.use(function cachePrivate(req, res, next) {
+    res.set("Cache-Control", "private, max-age=0, must-revalidate");
+    return next();
+  });
+
   app.use(async function prepareApp(req, res, next) {
     const app = await appClient.getApp();
     Object.assign(res.locals, { app });
@@ -171,7 +178,9 @@ function WebApp({ config, appClient }) {
   });
 
   app.get("/", (req, res) => {
-    if (!req.isAuthenticated()) return res.render("index");
+    if (!req.isAuthenticated()) {
+      return res.render("index");
+    }
     if (req.query.setup_action === "install") {
       const installation = res.locals.installations.find(
         (i) => String(i.id) === req.query.installation_id
@@ -184,9 +193,10 @@ function WebApp({ config, appClient }) {
 
   app.get("/login", passport.authenticate("github"));
 
-  app.get("/auth/callback", passport.authenticate("github"), (req, res) => {
-    res.redirect("/");
-  });
+  app.get(
+    "/auth/callback",
+    passport.authenticate("github", { successRedirect: "/" })
+  );
 
   app.use(function ensureAuthenticated(req, res, next) {
     if (!req.isAuthenticated()) {
@@ -293,11 +303,6 @@ function WebApp({ config, appClient }) {
     });
 
     res.redirect(`/${res.locals.owner}/${res.locals.repo}`);
-  });
-
-  app.use(function cacheHeaders(req, res, next) {
-    res.set("Cache-Control", "max-age=0, private, must-revalidate");
-    return next();
   });
 
   app.get("/:owner", async function handleListRepositories(req, res) {
