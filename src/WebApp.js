@@ -23,6 +23,7 @@
 
 const path = require("path");
 const { callbackify } = require("util");
+const _ = require("lodash");
 const express = require("express");
 const helmet = require("helmet");
 const { RateLimiterMemory } = require("rate-limiter-flexible");
@@ -244,10 +245,34 @@ function WebApp({ config, appClient }) {
     return next();
   });
 
-  app.post("/:owner/:repo", async function handleUpdateRepository(req, res) {
-    const { sha, ...updatedRepositoryConfig } = req.body;
+  // app.post(
+  //   "/:owner/:repo/create-config",
+  //   async function handleCreateConfig(req, res) {
+  //     if (res.locals.config.exists) {
+  //       return res.status(409).render("repo", { errors: { conflict: true } });
+  //     }
+  //     /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
+  //     const installationClient = await appClient.createInstallationClient(
+  //       res.locals
+  //     );
+  //     if (!installationClient.canWrite("single_file")) {
+  //       return res
+  //         .status(403)
+  //         .render("repo", { errors: { permissions: true } });
+  //     }
+  //     const repositoryClient = installationClient.createRepositoryClient(
+  //       res.locals
+  //     );
+  //     res.locals.config = await repositoryClient.createConfig();
+
+  //     res.redirect(`/${res.locals.owner}/${res.locals.repo}?updated=true`);
+  //   }
+  // );
+
+  app.post("/:owner/:repo", async function handleUpdateRepo(req, res) {
+    let { sha, ...updatedRepositoryConfig } = req.body;
     /* lost update problem check */
-    if (sha !== res.locals.config.sha) {
+    if (res.locals.config.exists && sha !== res.locals.config.sha) {
       return res.status(409).render("repo", { errors: { conflict: true } });
     }
     /* form booleans */
@@ -279,6 +304,10 @@ function WebApp({ config, appClient }) {
     const repositoryClient = installationClient.createRepositoryClient(
       res.locals
     );
+    if (!res.locals.config.exists) {
+      res.locals.config = await repositoryClient.createConfig();
+      sha = res.locals.config.sha;
+    }
     res.locals.config = await repositoryClient.mergeConfig({
       repositoryConfig: res.locals.config.json,
       repositoryConfigYaml: res.locals.config.yaml,
@@ -286,7 +315,7 @@ function WebApp({ config, appClient }) {
       updatedRepositoryConfig,
     });
 
-    res.render("repo", { updated: true });
+    res.redirect(`/${res.locals.owner}/${res.locals.repo}`);
   });
 
   app.use(function cacheHeaders(req, res, next) {
@@ -298,10 +327,12 @@ function WebApp({ config, appClient }) {
     res.locals.repositories = await req.githubOAuthClient.listRepositoriesByInstallationId(
       { installationId: res.locals.installation.id }
     );
-    res.render("owner", { new: req.query.new });
+    res.render("owner", _.pick(req.query, ["new"]));
   });
 
-  app.get("/:owner/:repo", (req, res) => res.render("repo"));
+  app.get("/:owner/:repo", (req, res) =>
+    res.render("repo", _.pick(req.query, ["updated"]))
+  );
 
   return app;
 }

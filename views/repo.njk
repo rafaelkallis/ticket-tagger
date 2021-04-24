@@ -90,16 +90,9 @@
                     id="check-enabled"
                     type="checkbox"
                     name="enabled"
-                    {%
-                    if
-                    config.json.enabled
-                    %}checked{%
-                    endif
-                    %}
+                    {% if config.json.enabled %}checked{% endif %}
                   />
-                  <span class="status-indicator js-status-indicator"
-                    >{% octicon "check", width="16" %}</span
-                  >
+                  <span class="status-indicator js-status-indicator">{% octicon "check", width="16" %}</span>
                   <p class="note">
                     Enables or disables issue labelling on the repository.
                   </p>

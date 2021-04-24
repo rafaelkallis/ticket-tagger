@@ -57,6 +57,8 @@ const repositoryConfigDefaults = {
 };
 Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
+const repositoryConfigYamlDefaults = YAML.stringify(repositoryConfigDefaults);
+
 class CacheKeyComputer {
   computeCacheKey({ url, options }) {
     const hash = crypto.createHash("md5");
@@ -398,6 +400,29 @@ class GitHubRepositoryClient extends GitHubClient {
   }
 
   /**
+   * Creates the repository's tickettager config.
+   * @see https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents
+   */
+  async createConfig() {
+    const json = cloneDeep(repositoryConfigDefaults);
+    const yaml = YAML.stringify(json);
+
+    const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: this._headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        message: `Created ${this.config.CONFIG_FILE_PATH}`,
+        content: Buffer.from(yaml, "utf8").toString("base64"),
+      }),
+    });
+    this._assertSuccess(response);
+    const body = await response.json();
+
+    return { json, yaml, sha: body.content.sha, exists: true };
+  }
+
+  /**
    * Updates the repository's tickettager config.
    * @see https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents
    */
@@ -419,12 +444,16 @@ class GitHubRepositoryClient extends GitHubClient {
       repositoryConfig,
       updatedRepositoryConfig
     );
-    if (![added, deleted, updated].some((o) => !!Object.keys(o).length)) {
+    if (
+      !!sha &&
+      ![added, deleted, updated].some((o) => !!Object.keys(o).length)
+    ) {
       /* no change detected */
       return {
         json: repositoryConfig,
         yaml: repositoryConfigYaml,
         sha,
+        exists: true,
       };
     }
     const yamlDoc = YAML.parseDocument(repositoryConfigYaml);
@@ -452,6 +481,7 @@ class GitHubRepositoryClient extends GitHubClient {
       json: updatedRepositoryConfig,
       yaml: updatedYaml,
       sha: body.content.sha,
+      exists: true,
     };
 
     function traverse(value) {
