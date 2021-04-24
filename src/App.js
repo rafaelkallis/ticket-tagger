@@ -47,7 +47,7 @@ function App({ config }) {
     res.status(200).send({ message: "ticket-tagger lives!" })
   );
 
-  app.use(webhookApp.middleware);
+  app.use("/webhook", webhookApp.middleware);
 
   app.use(webApp);
 

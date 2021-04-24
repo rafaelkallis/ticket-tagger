@@ -81,13 +81,11 @@ function WebhookApp({ config, classifier, appClient }) {
 
   /* github ip whitelist */
   middleware.use(function githubIpWhitelist(req, res, next) {
-    if (!hookIps.some((hookIp) => hookIp.contains(req.ip))) {
-      return res.sendStatus(403);
-    }
-    return next();
+    const match = hookIps.some((hookIp) => hookIp.contains(req.ip));
+    return match ? next() : res.sendStatus(403);
   });
 
-  middleware.use(createNodeMiddleware(webhooks, { path: "/webhook" }));
+  middleware.use(createNodeMiddleware(webhooks, { path: "/" }));
 
   async function start() {
     /* add github hook ips to whitelist*/
