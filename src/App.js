@@ -47,7 +47,7 @@ function App({ config }) {
     res.status(200).send({ message: "ticket-tagger lives!" })
   );
 
-  app.use(webhookApp);
+  app.use(webhookApp.middleware);
 
   app.use(webApp);
 
@@ -73,9 +73,11 @@ function App({ config }) {
 
     await classifier.initialize();
 
-    server.listen(config.PORT, () => {
-      console.info(`ticket-tagger listening on port ${config.PORT}`);
-    });
+    await webhookApp.start();
+
+    await promisify((cb) => server.listen(config.PORT, "0.0.0.0", cb))();
+
+    console.info(`ticket-tagger listening on port ${config.PORT}`);
   }
 
   async function stop() {
@@ -91,6 +93,8 @@ function App({ config }) {
     await promisify(setImmediate)();
     connections.clear();
     console.info("connections closed");
+
+    await webhookApp.stop();
 
     await mongoose.disconnect();
   }

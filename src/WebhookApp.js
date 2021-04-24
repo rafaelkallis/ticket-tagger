@@ -23,6 +23,7 @@
 
 const express = require("express");
 const { Webhooks, createNodeMiddleware } = require("@octokit/webhooks");
+const { Netmask } = require("netmask");
 const telemetry = require("./telemetry");
 const { repositoryConfigDefaults } = require("./github");
 
@@ -74,7 +75,36 @@ function WebhookApp({ config, classifier, appClient }) {
     telemetry.event("Installed");
   });
 
-  return express().use(createNodeMiddleware(webhooks, { path: "/webhook" }));
+  const middleware = express.Router();
+
+  let hookIps = [];
+
+  /* github ip whitelist */
+  middleware.use(function githubIpWhitelist(req, res, next) {
+    if (!hookIps.some((hookIp) => hookIp.contains(req.ip))) {
+      return res.sendStatus(403);
+    }
+    return next();
+  });
+
+  middleware.use(createNodeMiddleware(webhooks, { path: "/webhook" }));
+
+  async function start() {
+    /* add github hook ips to whitelist*/
+    const meta = await appClient.getMeta();
+    hookIps = meta.hooks.map((hook) => new Netmask(hook));
+
+    /* add localhost to whitelist during development */
+    if (!config.isProduction) {
+      hookIps.push(new Netmask("127.0.0.1"));
+    }
+  }
+
+  async function stop() {
+    hookIps = [];
+  }
+
+  return { start, stop, middleware };
 }
 
 module.exports = { WebhookApp };

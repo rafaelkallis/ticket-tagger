@@ -190,7 +190,6 @@ function WebApp({ config, appClient }) {
 
   app.use(function ensureAuthenticated(req, res, next) {
     if (!req.isAuthenticated()) {
-      console.log("not authenticated!");
       req.session.returnTo = req.originalUrl;
       return res.redirect("/login");
     }
@@ -245,30 +244,6 @@ function WebApp({ config, appClient }) {
     return next();
   });
 
-  // app.post(
-  //   "/:owner/:repo/create-config",
-  //   async function handleCreateConfig(req, res) {
-  //     if (res.locals.config.exists) {
-  //       return res.status(409).render("repo", { errors: { conflict: true } });
-  //     }
-  //     /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
-  //     const installationClient = await appClient.createInstallationClient(
-  //       res.locals
-  //     );
-  //     if (!installationClient.canWrite("single_file")) {
-  //       return res
-  //         .status(403)
-  //         .render("repo", { errors: { permissions: true } });
-  //     }
-  //     const repositoryClient = installationClient.createRepositoryClient(
-  //       res.locals
-  //     );
-  //     res.locals.config = await repositoryClient.createConfig();
-
-  //     res.redirect(`/${res.locals.owner}/${res.locals.repo}?updated=true`);
-  //   }
-  // );
-
   app.post("/:owner/:repo", async function handleUpdateRepo(req, res) {
     let { sha, ...updatedRepositoryConfig } = req.body;
     /* lost update problem check */
@@ -304,10 +279,12 @@ function WebApp({ config, appClient }) {
     const repositoryClient = installationClient.createRepositoryClient(
       res.locals
     );
+    /* create config if it does not exist */
     if (!res.locals.config.exists) {
       res.locals.config = await repositoryClient.createConfig();
       sha = res.locals.config.sha;
     }
+    /* merge changes */
     res.locals.config = await repositoryClient.mergeConfig({
       repositoryConfig: res.locals.config.json,
       repositoryConfigYaml: res.locals.config.yaml,

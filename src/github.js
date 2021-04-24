@@ -22,6 +22,7 @@
 "use strict";
 
 const crypto = require("crypto");
+const _ = require("lodash");
 const jwt = require("jsonwebtoken");
 const fetch = require("node-fetch");
 const YAML = require("yaml");
@@ -241,6 +242,19 @@ class GitHubAppClient extends GitHubClient {
     return await this._fetchJsonConditional(url, {
       headers: this._headers(),
     });
+  }
+
+  /**
+   * Get meta.
+   * @see https://docs.github.com/en/rest/reference/meta
+   */
+  async getMeta() {
+    const url = this._url("/meta");
+    const response = await fetch(url, {
+      headers: _.omit(this._headers(), ["Authorization"]),
+    });
+    this._assertSuccess(response);
+    return await response.json();
   }
 
   async createInstallationClient({ installation }) {
