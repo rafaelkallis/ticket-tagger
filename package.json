@@ -1,6 +1,6 @@
 {
   "name": "tickettagger",
-  "version": "3.0.0-beta.0",
+  "version": "3.0.0-beta.1",
   "description": "Machine learning driven issue classification bot.",
   "license": "AGPL-3.0",
   "repository": {
@@ -33,7 +33,7 @@
   },
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "dependencies": {
-    "@octokit/webhooks": "9.1.0",
+    "@octokit/webhooks": "9.1.2",
     "applicationinsights": "1.8.10",
     "applicationinsights-native-metrics": "0.0.6",
     "chalk": "4.1.1",
@@ -60,7 +60,7 @@
     "yargs": "16.2.0"
   },
   "devDependencies": {
-    "eslint": "7.24.0",
+    "eslint": "7.25.0",
     "eslint-config-prettier": "8.2.0",
     "eslint-plugin-jest": "24.3.5",
     "eslint-plugin-node": "11.1.0",
