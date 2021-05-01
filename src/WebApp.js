@@ -54,7 +54,8 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
         let user = await entities.User.findOne({ githubId: profile._json.id });
         user = user || new entities.User({ githubId: profile._json.id });
         user.accessToken = accessToken;
-        return await user.save();
+        await user.save();
+        return user;
       })
     )
   );
@@ -161,7 +162,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
 
   app.use(function cachePrivate(req, res, next) {
     res.set("Cache-Control", "private, max-age=0, must-revalidate");
-    return next();
+    next();
   });
 
   app.use(async function prepareApp(req, res, next) {
@@ -198,11 +199,18 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
     return res.redirect(`/${installations[0].account.login}`);
   });
 
+  app.get("/404", (req, res) => res.render("404"));
+  app.get("/429", (req, res) => res.render("429"));
+  app.get("/access_denied", (req, res) => res.render("access_denied"));
+
   app.get("/login", passport.authenticate("github"));
 
   app.get(
     "/auth/callback",
-    passport.authenticate("github", { successRedirect: "/" })
+    passport.authenticate("github", {
+      successRedirect: "/",
+      failureRedirect: "/access_denied",
+    })
   );
 
   app.use(function ensureAuthenticated(req, res, next) {
@@ -214,8 +222,6 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
   });
 
   app.get("/install", (req, res) => res.render("install"));
-  app.get("/404", (req, res) => res.render("404"));
-  app.get("/429", (req, res) => res.render("429"));
 
   app.post("/logout", (req, res) => {
     req.logout();
