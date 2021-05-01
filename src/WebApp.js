@@ -29,14 +29,13 @@ const helmet = require("helmet");
 const { RateLimiterMemory } = require("rate-limiter-flexible");
 const session = require("express-session");
 const MongoSessionStore = require("connect-mongo");
-const mongoose = require("mongoose");
 const { Passport } = require("passport");
 const { Strategy: GitHubStrategy } = require("passport-github");
 const nunjucks = require("nunjucks");
 const nunjucksOcticonsExtension = require("nunjucks-octicons-extension");
 const { GitHubOAuthClient, repositoryConfigSchema } = require("./github");
 
-function WebApp({ config, appClient }) {
+function WebApp({ config, appClient, mongoConnection, entities }) {
   const passport = new Passport();
   passport.use(
     new GitHubStrategy(
@@ -46,36 +45,41 @@ function WebApp({ config, appClient }) {
         callbackURL: config.SERVER_BASE_URL + "/auth/callback",
         scope: ["user"],
         userAgent: config.USER_AGENT,
-        passReqToCallback: true,
       },
       callbackify(async function verify(
-        req,
         accessToken,
-        _refreshToken,
+        _refreshToken /* refresh token is conciously ignored */,
         profile
       ) {
-        /* make sure we are using a server-side session store, access token is sensitive */
-        req.session.accessToken = accessToken;
-        return profile._json;
+        let user = await entities.User.findOne({ githubId: profile._json.id });
+        user = user || new entities.User({ githubId: profile._json.id });
+        user.accessToken = accessToken;
+        return await user.save();
       })
     )
   );
   passport.serializeUser(callbackify(async (user) => user.id));
   passport.deserializeUser(
     callbackify(async function deserializeUser(req, id) {
+      const user = await entities.User.findById(id);
+      if (!user) {
+        return false;
+      }
       const githubOAuthClient = new GitHubOAuthClient({
         config,
-        accessToken: req.session.accessToken,
+        entities,
+        accessToken: user.accessToken,
       });
       const checkTokenResponse = await githubOAuthClient.checkToken();
       if (!checkTokenResponse) {
-        throw new Error("revoked access token");
+        /* access token rejected, either expired or revoked by user */
+        return false;
       }
-      if (id !== checkTokenResponse.user.id) {
-        throw new Error("unexpected user id mismatch");
+      if (user.githubId !== checkTokenResponse.user.id) {
+        return false;
       }
       req.githubOAuthClient = githubOAuthClient;
-      return checkTokenResponse.user;
+      return user;
     })
   );
 
@@ -131,17 +135,16 @@ function WebApp({ config, appClient }) {
     session({
       name: config.SESSION_NAME,
       secret: config.SESSION_KEYS,
-      saveUninitialized: true,
+      saveUninitialized: false,
       resave: false,
       cookie: {
         secure: config.isProduction,
         sameSite: "strict",
+        maxAge: 8 * 60 * 60 * 1000,
       },
       store: MongoSessionStore.create({
         clientPromise: new Promise((resolve) =>
-          mongoose.connection.once("open", () =>
-            resolve(mongoose.connection.client)
-          )
+          mongoConnection.once("open", () => resolve(mongoConnection.client))
         ),
         /* https://github.com/jdesboeufs/connect-mongo#crypto-related-options */
         crypto: { secret: config.SESSION_STORE_ENCRYPTION_KEY },
@@ -164,7 +167,7 @@ function WebApp({ config, appClient }) {
   app.use(async function prepareApp(req, res, next) {
     const app = await appClient.getApp();
     Object.assign(res.locals, { app });
-    return next();
+    next();
   });
 
   app.use(async function prepareInstallations(req, res, next) {
@@ -174,7 +177,7 @@ function WebApp({ config, appClient }) {
         installations: await req.githubOAuthClient.listInstallations(),
       });
     }
-    return next();
+    next();
   });
 
   app.get("/", (req, res) => {
@@ -203,7 +206,7 @@ function WebApp({ config, appClient }) {
       req.session.returnTo = req.originalUrl;
       return res.redirect("/login");
     }
-    return next();
+    next();
   });
 
   app.get("/install", (req, res) => res.render("install"));

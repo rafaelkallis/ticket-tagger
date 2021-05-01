@@ -79,6 +79,10 @@ const config = envalid.cleanEnv(process.env, {
       "0000000000000000000000000000000000000000000000000000000000000000",
   }),
   MONGO_URI: envalid.url(),
+  MONGO_ENCRYPTION_KEY: hexKey({
+    devDefault:
+      "0000000000000000000000000000000000000000000000000000000000000000",
+  }),
   GITHUB_CLIENT_ID: envalid.str({ devDefault: "123456" }),
   GITHUB_CLIENT_SECRET: envalid.str({ devDefault: "123456" }),
   DATASET_DIR: envalid.str({

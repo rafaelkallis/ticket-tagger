@@ -25,19 +25,42 @@ const { promisify } = require("util");
 const http = require("http");
 const express = require("express");
 const mongoose = require("mongoose");
+const { encryptionPlugin } = require("./mongooseEncryptionPlugin");
 const { Classifier } = require("./classifier");
 const { GitHubAppClient } = require("./github");
 const { WebApp } = require("./WebApp");
 const { WebhookApp } = require("./WebhookApp");
+const { User } = require("./entities/User");
+const { CacheRecord } = require("./entities/CacheRecord");
 
 function App({ config }) {
+  const mongoConnection = mongoose.createConnection(config.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    useCreateIndex: true,
+    useFindAndModify: true,
+  });
+  mongoConnection.plugin(encryptionPlugin, {
+    key: config.MONGO_ENCRYPTION_KEY,
+  });
+  const entities = {
+    User: User(mongoConnection),
+    CacheRecord: CacheRecord(mongoConnection),
+  };
+
+  const appClient = new GitHubAppClient({ config, entities });
+  const webApp = new WebApp({ config, appClient, mongoConnection, entities });
+
   const classifier = Classifier.createFromRemote({
     config,
     modelUri: config.FASTTEXT_MODEL_URI,
   });
-  const appClient = new GitHubAppClient({ config });
-  const webApp = new WebApp({ config, appClient });
-  const webhookApp = new WebhookApp({ config, classifier, appClient });
+  const webhookApp = new WebhookApp({
+    config,
+    classifier,
+    appClient,
+    entities,
+  });
 
   const app = express();
 
@@ -64,12 +87,7 @@ function App({ config }) {
   return { start, stop, server };
 
   async function start() {
-    await mongoose.connect(config.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      useCreateIndex: true,
-      useFindAndModify: true,
-    });
+    await mongoConnection;
 
     await classifier.initialize();
 

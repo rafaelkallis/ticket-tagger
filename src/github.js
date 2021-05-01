@@ -29,7 +29,6 @@ const YAML = require("yaml");
 const { detailedDiff } = require("deep-object-diff");
 const Joi = require("joi");
 const { cloneDeep, defaultsDeep } = require("lodash");
-const { CacheRecord } = require("./entities/CacheRecord");
 
 const repositoryConfigSchema = Joi.object({
   version: Joi.number().allow(3),
@@ -58,8 +57,6 @@ const repositoryConfigDefaults = {
 };
 Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
-const repositoryConfigYamlDefaults = YAML.stringify(repositoryConfigDefaults);
-
 class CacheKeyComputer {
   computeCacheKey({ url, options }) {
     const hash = crypto.createHash("md5");
@@ -83,9 +80,10 @@ class AuthorizationCacheKeyComputer extends CacheKeyComputer {
 }
 
 class GitHubClient {
-  constructor({ config, cacheKeyComputer }) {
+  constructor({ config, cacheKeyComputer, entities }) {
     this.config = config;
     this.cacheKeyComputer = cacheKeyComputer;
+    this.entities = entities;
     this.baseUrl = "https://api.github.com";
   }
 
@@ -113,15 +111,17 @@ class GitHubClient {
    * Uses conditional requests for improved rate limits.
    * @see https://docs.github.com/en/rest/guides/getting-started-with-the-rest-api#conditional-requests
    */
-  async _fetchJsonConditional(url, options) {
+  async _fetch(url, options) {
     const cacheKey = this.cacheKeyComputer.computeCacheKey({ url, options });
-    let cacheRecord = await CacheRecord.findOne({ key: cacheKey });
+    let cacheRecord = await this.entities.CacheRecord.findOne({
+      key: cacheKey,
+    });
     if (cacheRecord) {
       options.headers["If-None-Match"] = cacheRecord.etag;
     }
     const response = await fetch(url, options);
     /* cache hit */
-    if (response.status === 304) return cacheRecord.payload;
+    if (response.status === 304) return JSON.parse(cacheRecord.payload);
 
     /* bad */
     if (!response.ok) return null;
@@ -130,18 +130,22 @@ class GitHubClient {
     const etag = response.headers.get("ETag");
     const payload = await response.json();
     if (!cacheRecord) {
-      cacheRecord = new CacheRecord({ key: cacheKey });
+      cacheRecord = new this.entities.CacheRecord({ key: cacheKey });
     }
     cacheRecord.etag = etag;
-    cacheRecord.payload = payload;
+    cacheRecord.payload = JSON.stringify(payload);
     await cacheRecord.save();
     return payload;
   }
 }
 
 class GitHubOAuthClient extends GitHubClient {
-  constructor({ config, accessToken }) {
-    super({ config, cacheKeyComputer: new AuthorizationCacheKeyComputer() });
+  constructor({ config, entities, accessToken }) {
+    super({
+      config,
+      cacheKeyComputer: new AuthorizationCacheKeyComputer(),
+      entities,
+    });
     this.accessToken = accessToken;
   }
 
@@ -170,7 +174,7 @@ class GitHubOAuthClient extends GitHubClient {
    */
   async getUser() {
     const url = this._url("/user");
-    return await this._fetchJsonConditional(url, { headers: this._headers() });
+    return await this._fetch(url, { headers: this._headers() });
   }
 
   /**
@@ -178,7 +182,7 @@ class GitHubOAuthClient extends GitHubClient {
    */
   async getRepository({ owner, repo }) {
     const url = this._url(`/repos/${owner}/${repo}`);
-    return await this._fetchJsonConditional(url, { headers: this._headers() });
+    return await this._fetch(url, { headers: this._headers() });
   }
 
   /**
@@ -186,7 +190,7 @@ class GitHubOAuthClient extends GitHubClient {
    */
   async listInstallations() {
     const url = this._url("/user/installations");
-    const { installations } = await this._fetchJsonConditional(url, {
+    const { installations } = await this._fetch(url, {
       headers: this._headers(),
     });
     return installations;
@@ -197,7 +201,7 @@ class GitHubOAuthClient extends GitHubClient {
    */
   async listRepositoriesByInstallationId({ installationId }) {
     const url = this._url(`/user/installations/${installationId}/repositories`);
-    const { repositories } = await this._fetchJsonConditional(url, {
+    const { repositories } = await this._fetch(url, {
       headers: this._headers(),
     });
     return repositories;
@@ -229,8 +233,8 @@ class GitHubOAuthClient extends GitHubClient {
  * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-a-github-app
  */
 class GitHubAppClient extends GitHubClient {
-  constructor({ config }) {
-    super({ config, cacheKeyComputer: new CacheKeyComputer() });
+  constructor({ config, entities }) {
+    super({ config, cacheKeyComputer: new CacheKeyComputer(), entities });
   }
 
   /**
@@ -239,7 +243,7 @@ class GitHubAppClient extends GitHubClient {
    */
   async getApp() {
     const url = this._url("/app");
-    return await this._fetchJsonConditional(url, {
+    return await this._fetch(url, {
       headers: this._headers(),
     });
   }
@@ -320,11 +324,12 @@ class GitHubInstallationClient extends GitHubClient {
   constructor({
     config,
     cacheKeyComputer,
+    entities,
     accessToken,
     installation,
     permissions,
   }) {
-    super({ config, cacheKeyComputer });
+    super({ config, cacheKeyComputer, entities });
     this.accessToken = accessToken;
     this.installation = installation;
     this.permissions = permissions;
@@ -360,8 +365,8 @@ class GitHubInstallationClient extends GitHubClient {
 }
 
 class GitHubRepositoryClient extends GitHubClient {
-  constructor({ config, cacheKeyComputer, accessToken, repository }) {
-    super({ config, cacheKeyComputer });
+  constructor({ config, cacheKeyComputer, entities, accessToken, repository }) {
+    super({ config, cacheKeyComputer, entities });
     this.accessToken = accessToken;
     this.repository = repository;
   }
@@ -386,7 +391,7 @@ class GitHubRepositoryClient extends GitHubClient {
    */
   async getConfig() {
     const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
-    const body = await this._fetchJsonConditional(url, {
+    const body = await this._fetch(url, {
       headers: this._headers(),
     });
 
