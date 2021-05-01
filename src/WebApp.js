@@ -135,7 +135,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
   app.use(
     session({
       name: config.SESSION_NAME,
-      secret: config.SESSION_KEYS,
+      secret: config.SESSION_KEYS.map((buf) => buf.toString("hex")),
       saveUninitialized: false,
       resave: false,
       cookie: {
