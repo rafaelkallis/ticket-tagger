@@ -25,15 +25,16 @@ const assert = require("assert");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
 
-/* https://tools.ietf.org/html/rfc3394#section-2.2.3.1 */
-const A6_IV = Buffer.alloc(8, 0xa6);
-
-// const encryptedFieldSchema = {
-//   _ek: String,
-//   _iv: String,
-//   _ac: String,
-//   _ct: String,
-// };
+const encryptionSchema = new mongoose.Schema(
+  {
+    ve: { type: String, required: true },
+    ek: { type: Buffer, required: true },
+    iv: { type: Buffer, required: true },
+    ac: { type: Buffer, required: true },
+    ct: { type: Buffer, required: true },
+  },
+  { strict: "throw" }
+);
 
 function encryptionPlugin(schema, options = {}) {
   assert(options.key, "key is missing");
@@ -57,97 +58,121 @@ function encryptionPlugin(schema, options = {}) {
       return;
     }
 
+    const { String, Number, Mixed } = mongoose.Schema.Types;
+    const allowedTypes = [String, Number, Mixed];
     assert(
-      schemaType instanceof mongoose.Schema.Types.String,
-      "plugin can be used with String type only"
+      allowedTypes.some((t) => schemaType instanceof t),
+      `Type ${schemaType.constructor.name} not supported`
     );
 
-    encryptedPaths.push({ path, schemaType });
+    const allowedOptions = ["type", "required", "encrypted"];
+    const illegalOptions = Object.keys(schemaType.options).filter(
+      (o) => !allowedOptions.includes(o)
+    );
+    assert(
+      illegalOptions.length === 0,
+      `illegal options detected: ${illegalOptions.join(", ")}`
+    );
 
-    // schema.remove(path);
-    // schema.add({ [path]: encryptedFieldSchema });
+    const virtualPath = path;
+    const lastPeriodIndex = path.lastIndexOf(".");
+    const shadowPath = `${path.substring(
+      0,
+      lastPeriodIndex + 1
+    )}_${path.substring(lastPeriodIndex + 1)}`;
+    const symbol = Symbol(virtualPath);
+    encryptedPaths.push({ virtualPath, shadowPath, symbol, schemaType });
+
+    schema.remove(virtualPath);
+    schema.add({ [shadowPath]: encryptionSchema });
+    schema
+      .virtual(virtualPath)
+      .get(function () {
+        return this[symbol] ? this[symbol].value : undefined;
+      })
+      .set(function (value) {
+        if (!this[symbol]) {
+          this[symbol] = { virtualPath, shadowPath };
+        }
+        this[symbol].value = value;
+      });
   });
 
   schema.method({
     encrypt() {
-      for (const { path } of encryptedPaths) {
-        const original = this.get(path);
-        const originalBytes = Buffer.from(original);
+      for (const { virtualPath, shadowPath } of encryptedPaths) {
+        const virtualValue = this.get(virtualPath);
+        if ([undefined, null].includes(virtualValue)) {
+          this.set(shadowPath, plaintext);
+          continue;
+        }
+        const plaintext = Buffer.from(JSON.stringify(virtualValue));
         const ve = "1";
-        const cekBytes = crypto.randomBytes(keyByteLength);
+        const cek = crypto.randomBytes(keyByteLength);
         const cekCipher = crypto.createCipheriv(
           `aes${keyBitLength}-wrap`,
           kekBytes,
-          A6_IV
+          Buffer.alloc(8, 0xa6)
         );
-        const ekBytes = Buffer.concat([
-          cekCipher.update(cekBytes),
-          cekCipher.final(),
-        ]);
-        const ek = ekBytes.toString("base64");
+        const ek = Buffer.concat([cekCipher.update(cek), cekCipher.final()]);
         /* aes is a 128-bit block algo, therefore iv is 128 bits */
-        const ivBytes = crypto.randomBytes(16);
-        const iv = ivBytes.toString("base64");
+        const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv(
           `aes-${keyBitLength}-gcm`,
-          cekBytes,
-          ivBytes
+          cek,
+          iv
         );
-        const ct = Buffer.concat([
-          cipher.update(originalBytes),
-          cipher.final(),
-        ]).toString("base64");
-        const acBytes = cipher.getAuthTag();
-        assert(acBytes.length === 16);
-        const ac = acBytes.toString("base64");
-        const metadata = [ve, ek, iv, ac, ct].join("$");
-        this.set(path, metadata);
+        const ct = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+        const ac = cipher.getAuthTag();
+        assert(ac.length === 16);
+        const shadowValue = { ve, ek, iv, ac, ct };
+        this.set(shadowPath, shadowValue);
       }
     },
     decrypt() {
-      for (const { path } of encryptedPaths) {
-        const metadata = (this.get(path) || "").split("$");
-        const [ve] = metadata;
-        assert(ve, "no version found in metadata string");
-        const plaintext = {
-          0() {
-            const [, ct] = metadata;
-            return Buffer.from(ct, "base64").toString();
-          },
-          1() {
-            const [, ek, iv, ac, ct] = metadata;
+      for (const { virtualPath, symbol, shadowPath } of encryptedPaths) {
+        assert(!this[symbol], `${virtualPath} is already decrypted`);
+        const shadowValue = this.get(shadowPath);
+        if ([null, undefined].includes(shadowValue)) {
+          this[symbol] = { value: shadowValue, virtualPath, shadowPath };
+          continue;
+        }
+        assert(shadowValue.ve, "no version found in shadow value");
+        let plaintext = null;
+        switch (shadowValue.ve) {
+          case "1": {
+            /* aes256 keywrap + aes256 content */
+            const { ek, iv, ac, ct } = shadowValue;
             const cekDecipher = crypto.createDecipheriv(
               `aes${keyBitLength}-wrap`,
               kekBytes,
-              A6_IV
+              Buffer.alloc(8, 0xa6)
             );
-            const ekBytes = Buffer.from(ek, "base64");
-            const cekBytes = Buffer.concat([
-              cekDecipher.update(ekBytes),
+            const cek = Buffer.concat([
+              cekDecipher.update(ek),
               cekDecipher.final(),
             ]);
-            assert(cekBytes.length === keyByteLength);
-            const ivBytes = Buffer.from(iv, "base64");
-            assert(ivBytes.length === 16);
+            assert(cek.length === keyByteLength);
+            assert(iv.length === 16);
             const decipher = crypto.createDecipheriv(
               `aes-${keyBitLength}-gcm`,
-              cekBytes,
-              ivBytes
+              cek,
+              iv
             );
-            const acBytes = Buffer.from(ac, "base64");
-            assert(acBytes.length === 16);
-            decipher.setAuthTag(acBytes);
-            const ctBytes = Buffer.from(ct, "base64");
-            return Buffer.concat([
-              decipher.update(ctBytes),
+            assert(ac.length === 16);
+            decipher.setAuthTag(ac);
+            plaintext = Buffer.concat([
+              decipher.update(ct),
               decipher.final(),
             ]).toString();
-          },
-        }[ve]();
-        if (!plaintext) {
-          throw new Error("unsupported version");
+            break;
+          }
+          default: {
+            throw new Error(`version ${shadowValue.ve} not supported`);
+          }
         }
-        this.set(path, plaintext);
+        const virtualValue = JSON.parse(plaintext);
+        this.set(virtualPath, virtualValue);
       }
     },
   });

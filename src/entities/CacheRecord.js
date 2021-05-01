@@ -26,7 +26,7 @@ const { Schema } = require("mongoose");
 const cacheRecordSchema = new Schema({
   key: { type: String, required: true, index: true },
   etag: { type: String, required: true },
-  payload: { type: String, required: true, encrypted: true },
+  payload: { type: Object, required: true, encrypted: true },
   _ts: { type: Date, expires: 60 * 60 }, // cosmos db ttl
 });
 

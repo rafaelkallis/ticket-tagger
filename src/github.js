@@ -121,7 +121,7 @@ class GitHubClient {
     }
     const response = await fetch(url, options);
     /* cache hit */
-    if (response.status === 304) return JSON.parse(cacheRecord.payload);
+    if (response.status === 304) return cacheRecord.payload;
 
     /* bad */
     if (!response.ok) return null;
@@ -133,7 +133,7 @@ class GitHubClient {
       cacheRecord = new this.entities.CacheRecord({ key: cacheKey });
     }
     cacheRecord.etag = etag;
-    cacheRecord.payload = JSON.stringify(payload);
+    cacheRecord.payload = payload;
     await cacheRecord.save();
     return payload;
   }

@@ -25,7 +25,7 @@ const { Schema } = require("mongoose");
 
 const userSchema = new Schema({
   githubId: { type: Number, required: true, unique: true },
-  accessToken: { type: String, required: true, encrypted: true }, // TODO encrypt
+  accessToken: { type: String, required: true, encrypted: true },
   _ts: { type: Date, expires: 8 * 60 * 60 }, // cosmos db ttl
 });
 

@@ -191,7 +191,11 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
       if (!installation) return res.redirect("/404");
       return res.redirect(`/${installation.account.login}?new=true`);
     }
-    res.redirect(`/${req.user.login}`);
+    const { installations } = res.locals;
+    if (!installations.length) {
+      return res.redirect("/install");
+    }
+    return res.redirect(`/${installations[0].account.login}`);
   });
 
   app.get("/login", passport.authenticate("github"));
