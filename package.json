@@ -33,7 +33,7 @@
   },
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "dependencies": {
-    "@octokit/webhooks": "9.1.2",
+    "@octokit/webhooks": "9.3.0",
     "applicationinsights": "1.8.10",
     "applicationinsights-native-metrics": "0.0.6",
     "chalk": "4.1.1",
@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "eslint": "7.25.0",
-    "eslint-config-prettier": "8.2.0",
+    "eslint-config-prettier": "8.3.0",
     "eslint-plugin-jest": "24.3.5",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-prettier": "3.4.0",
