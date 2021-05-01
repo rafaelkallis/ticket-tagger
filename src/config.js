@@ -37,7 +37,7 @@ const hexKey = envalid.makeValidator((input) => {
   if (!/^[0-9a-f]{64}$/i.test(input)) {
     throw new Error("key must be 64 hex digits long.");
   }
-  return Buffer.from(input, "hex").toString("utf8");
+  return Buffer.from(input, "hex");
 });
 
 const hexKeyList = envalid.makeValidator((input) => {
@@ -48,7 +48,7 @@ const hexKeyList = envalid.makeValidator((input) => {
   if (keys.some((key) => !/^[0-9a-f]{64}$/i.test(key))) {
     throw new Error("keys must be 64 hex digits long (and comma separated).");
   }
-  return keys.map((key) => Buffer.from(key, "hex").toString("utf8"));
+  return keys.map((key) => Buffer.from(key, "hex"));
 });
 
 const config = envalid.cleanEnv(process.env, {

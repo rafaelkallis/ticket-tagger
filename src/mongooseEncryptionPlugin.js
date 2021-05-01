@@ -38,7 +38,7 @@ const encryptionSchema = new mongoose.Schema(
 
 function encryptionPlugin(schema, options = {}) {
   assert(options.key, "key is missing");
-  const kekBytes = Buffer.from(options.key);
+  const kekBytes = options.key;
   const keyByteLength = kekBytes.length;
   assert(
     [16, 24, 32].includes(keyByteLength),
