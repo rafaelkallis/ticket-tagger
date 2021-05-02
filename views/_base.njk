@@ -64,6 +64,12 @@
           </ul>
         </details>
       </div>
+      {% elif user %}
+      <form action="/logout" method="POST">
+        <div class="Header-item mr-0">
+          <button class="Header-link btn btn-outline" href="/login">Sign out</button>
+        </div>
+      </form>
       {% else %}
       <div class="Header-item mr-0">
         <a class="Header-link btn btn-outline" href="/login">Sign in</a>

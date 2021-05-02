@@ -59,7 +59,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
       })
     )
   );
-  passport.serializeUser(callbackify(async (user) => user.id));
+  passport.serializeUser(callbackify((user) => Promise.resolve(user.id)));
   passport.deserializeUser(
     callbackify(async function deserializeUser(req, id) {
       const user = await entities.User.findById(id);
@@ -140,7 +140,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
       resave: false,
       cookie: {
         secure: config.isProduction,
-        sameSite: "strict",
+        sameSite: "lax",
         maxAge: 8 * 60 * 60 * 1000,
       },
       store: MongoSessionStore.create({
@@ -187,16 +187,16 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
     if (!req.isAuthenticated()) {
       return res.render("index");
     }
+    const { installations } = res.locals;
+    if (!installations.length) {
+      return res.redirect("/install");
+    }
     if (req.query.setup_action === "install") {
       const installation = res.locals.installations.find(
         (i) => String(i.id) === req.query.installation_id
       );
       if (!installation) return res.redirect("/404");
       return res.redirect(`/${installation.account.login}?new=true`);
-    }
-    const { installations } = res.locals;
-    if (!installations.length) {
-      return res.redirect("/install");
     }
     return res.redirect(`/${installations[0].account.login}`);
   });
@@ -209,10 +209,19 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
 
   app.get(
     "/auth/callback",
-    passport.authenticate("github", {
-      successRedirect: "/",
-      failureRedirect: "/access_denied",
-    })
+    passport.authenticate("github", { failureRedirect: "/access_denied" }),
+    async function handleAuthCallback(req, res) {
+      const githubOAuthClient = new GitHubOAuthClient({
+        config,
+        entities,
+        accessToken: req.user.accessToken,
+      });
+      const installations = await githubOAuthClient.listInstallations();
+      if (!installations.length) {
+        return res.redirect("/install");
+      }
+      res.redirect(`/${installations[0].account.login}`);
+    }
   );
 
   app.use(function ensureAuthenticated(req, res, next) {
