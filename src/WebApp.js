@@ -148,7 +148,9 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
           mongoConnection.once("open", () => resolve(mongoConnection.client))
         ),
         /* https://github.com/jdesboeufs/connect-mongo#crypto-related-options */
-        crypto: { secret: config.SESSION_STORE_ENCRYPTION_KEY },
+        crypto: {
+          secret: config.SESSION_STORE_ENCRYPTION_KEY.toString("hex"),
+        },
         autoRemove: "interval",
         autoRemoveInterval: 60,
       }),
