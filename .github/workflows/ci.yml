@@ -51,6 +51,8 @@ jobs:
       if: steps.cache-node_modules.outputs.cache-hit != 'true'
       run: npm ci
     - name: Test
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
       run: npm test
     # - name: Test cli benchmark
     #   run: node bin/tickettagger.js benchmark trivial 30k 30k --minCount 50

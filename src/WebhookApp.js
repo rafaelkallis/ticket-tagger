@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file app.js
+ * @file webhook app
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
@@ -23,64 +23,31 @@
 
 const express = require("express");
 const { Webhooks, createNodeMiddleware } = require("@octokit/webhooks");
-const { defaultsDeep } = require("lodash");
-const Joi = require("joi");
-const { ClassifierFactory } = require("./classifier");
-const github = require("./github");
-const config = require("./config");
+const { Netmask } = require("netmask");
 const telemetry = require("./telemetry");
-const { repositoryConfigSchema } = require("./schemata");
+const { repositoryConfigDefaults } = require("./github");
 
-const repositoryConfigDefaults = {
-  version: 3,
-  labels: Object.fromEntries(
-    ["bug", "enhancement", "question"].map((label) => [
-      label,
-      {
-        enabled: true,
-        text: label,
-      },
-    ])
-  ),
-};
-Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
-
-module.exports = async function App() {
-  const app = express();
-  const classifierFactory = new ClassifierFactory({ config });
-  const classifier = await classifierFactory.createClassifierFromRemote({
-    modelUri: config.FASTTEXT_MODEL_URI,
-  });
-
-  app.get("/status", (req, res) =>
-    res.status(200).send({ message: "ticket-tagger lives!" })
-  );
-
+function WebhookApp({ config, classifier, appClient }) {
   const webhooks = new Webhooks({ secret: config.GITHUB_SECRET });
 
   webhooks.on("issues.opened", handleIssueOpened);
   async function handleIssueOpened({ payload }) {
     const { installation, repository, issue } = payload;
 
-    /* get installation permissions */
-    const permissions = await github.getInstallationPermissions({
+    const installationClient = await appClient.createInstallationClient({
       installation,
+    });
+
+    /* abort if no issues write permission */
+    if (!installationClient.canWrite("issues")) return;
+
+    const repositoryClient = installationClient.createRepositoryClient({
       repository,
     });
 
-    /* abort if no issue issue permission */
-    if (!permissions.canWrite("issues")) return;
-
-    const repositoryClient = await github.createRepositoryClient({
-      installation,
-      repository,
-    });
-
-    let repositoryConfig = {};
-    if (permissions.canRead("single_file")) {
-      repositoryConfig = await repositoryClient.getRepositoryConfig();
-    }
-    defaultsDeep(repositoryConfig, repositoryConfigDefaults);
+    const repositoryConfig = installationClient.canRead("single_file")
+      ? await repositoryClient.getConfig().then(({ json }) => json)
+      : repositoryConfigDefaults;
 
     /* predict label */
     const [predictedLabelKey, similarity] = await classifier.predict(
@@ -101,13 +68,41 @@ module.exports = async function App() {
       telemetry.event("Classified");
     }
 
-    await repositoryClient.revokeAccessToken();
+    await installationClient.revokeAccessToken();
   }
 
   webhooks.on("installation.created", async () => {
     telemetry.event("Installed");
   });
-  app.use(createNodeMiddleware(webhooks, { path: "/webhook" }));
 
-  return app;
-};
+  const middleware = express.Router();
+
+  let hookIps = [];
+
+  /* github ip whitelist */
+  middleware.use(function githubIpWhitelist(req, res, next) {
+    const match = hookIps.some((hookIp) => hookIp.contains(req.ip));
+    return match ? next() : res.sendStatus(403);
+  });
+
+  middleware.use(createNodeMiddleware(webhooks, { path: "/" }));
+
+  async function start() {
+    /* add github hook ips to whitelist*/
+    const meta = await appClient.getMeta();
+    hookIps = meta.hooks.map((hook) => new Netmask(hook));
+
+    /* add localhost to whitelist during development */
+    if (!config.isProduction) {
+      hookIps.push(new Netmask("127.0.0.1"));
+    }
+  }
+
+  async function stop() {
+    hookIps = [];
+  }
+
+  return { start, stop, middleware };
+}
+
+module.exports = { WebhookApp };

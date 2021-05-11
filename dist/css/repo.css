@@ -1,0 +1,30 @@
+#arc-slider {
+    height: 150px !important;
+    /* width: 500px !important; */
+    overflow: hidden;
+    padding: 20px;
+}
+#arc-slider .rs-container {
+    margin-left: -350px; /* here 300 is the radius value */
+    left: 50%;
+}
+.rs-control .rs-border {
+    border-width: 0px;
+}
+
+/* Appearance related changes */
+.rs-control .rs-bg-color {
+    background-color: var(--color-bg-canvas);
+}
+.rs-control .rs-path {
+    background: conic-gradient(from 180deg, var(--color-bg-danger-inverse) 144deg, var(--color-bg-info-inverse) 180deg, var(--color-bg-danger-inverse) 216deg);
+}
+.rs-control .rs-seperator {
+    background-color: var(--color-bg-danger-inverse);
+}
+.rs-control .rs-inner {
+    background-color: var(--color-bg-canvas);
+}
+.rs-control .rs-handle {
+    background-color: var(--color-text-primary);
+}

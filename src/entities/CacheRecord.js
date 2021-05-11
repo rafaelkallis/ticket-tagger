@@ -15,21 +15,23 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file schemata
+ * @file cache record
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
 "use strict";
 
-const Joi = require("joi");
+const { Schema } = require("mongoose");
 
-exports.repositoryConfigSchema = Joi.object({
-  version: Joi.number().allow(3),
-  labels: Joi.object().pattern(
-    Joi.string().valid("bug", "enhancement", "question"),
-    {
-      enabled: Joi.boolean(),
-      text: Joi.string().max(50),
-    }
-  ),
+const cacheRecordSchema = new Schema({
+  key: { type: String, required: true, index: true },
+  etag: { type: String, required: true },
+  payload: { type: Object, required: true, encrypted: true },
+  _ts: { type: Date, expires: 60 * 60 }, // cosmos db ttl
 });
+
+function CacheRecord(connection) {
+  return connection.model("CacheRecord", cacheRecordSchema);
+}
+
+module.exports = { CacheRecord };
