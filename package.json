@@ -47,7 +47,7 @@
     "ml-confusion-matrix": "0.4.0",
     "node-fetch": "2.6.1",
     "yaml": "1.10.2",
-    "yargs": "16.2.0"
+    "yargs": "17.1.0"
   },
   "devDependencies": {
     "eslint": "7.25.0",
