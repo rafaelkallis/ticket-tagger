@@ -45,7 +45,7 @@
     "express-session": "1.17.1",
     "fasttext": "1.0.0",
     "helmet": "4.4.1",
-    "ipaddr.js": "^2.0.1",
+    "ipaddr.js": "2.0.1",
     "joi": "17.4.0",
     "jsonwebtoken": "8.5.1",
     "lodash": "4.17.21",
