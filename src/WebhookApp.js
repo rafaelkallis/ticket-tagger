@@ -23,7 +23,7 @@
 
 const express = require("express");
 const { Webhooks, createNodeMiddleware } = require("@octokit/webhooks");
-const { Netmask } = require("netmask");
+const ipaddr = require("ipaddr.js");
 const telemetry = require("./telemetry");
 const { repositoryConfigDefaults } = require("./github");
 
@@ -77,32 +77,58 @@ function WebhookApp({ config, classifier, appClient }) {
 
   const middleware = express.Router();
 
-  let hookIps = [];
+  const ipWhitelist = new IpWhitelist();
 
   /* github ip whitelist */
   middleware.use(function githubIpWhitelist(req, res, next) {
-    const match = hookIps.some((hookIp) => hookIp.contains(req.ip));
+    const match = ipWhitelist.contains(req.ip);
     return match ? next() : res.sendStatus(403);
   });
 
   middleware.use(createNodeMiddleware(webhooks, { path: "/" }));
 
   async function start() {
-    /* add github hook ips to whitelist*/
+    /* add github hook ips to whitelist */
+    /* https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses */
     const meta = await appClient.getMeta();
-    hookIps = meta.hooks.map((hook) => new Netmask(hook));
+    ipWhitelist.addRanges(meta.hooks);
 
     /* add localhost to whitelist during development */
     if (!config.isProduction) {
-      hookIps.push(new Netmask("127.0.0.1"));
+      ipWhitelist.addRange("127.0.0.0/8");
     }
   }
 
   async function stop() {
-    hookIps = [];
+    ipWhitelist.clear();
   }
 
   return { start, stop, middleware };
+}
+
+class IpWhitelist {
+  constructor() {
+    this._ipRanges = [];
+  }
+
+  addRange(cidr) {
+    this._ipRanges.push(ipaddr.parseCIDR(cidr));
+  }
+
+  addRanges(cidrs) {
+    cidrs.forEach((cidr) => this.addRange(cidr));
+  }
+
+  clear() {
+    this._ipRanges.length = 0;
+  }
+
+  contains(ip) {
+    const addr = ipaddr.parse(ip);
+    return this._ipRanges.some(
+      (ipRange) => addr.kind === ipRange[0].kind && addr.match(ipRange)
+    );
+  }
 }
 
 module.exports = { WebhookApp };
