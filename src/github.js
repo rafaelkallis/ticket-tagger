@@ -262,12 +262,10 @@ class GitHubAppClient extends GitHubClient {
   }
 
   async createInstallationClient({ installation }) {
-    const {
-      accessToken,
-      permissions,
-    } = await this._createInstallationAccessToken({
-      installation,
-    });
+    const { accessToken, permissions } =
+      await this._createInstallationAccessToken({
+        installation,
+      });
     return new GitHubInstallationClient({
       ...this,
       accessToken,
