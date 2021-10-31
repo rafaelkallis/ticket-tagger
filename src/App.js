@@ -37,8 +37,6 @@ function App({ config }) {
   const mongoConnection = mongoose.createConnection(config.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    useCreateIndex: true,
-    useFindAndModify: true,
   });
   mongoConnection.plugin(encryptionPlugin, {
     key: config.MONGO_ENCRYPTION_KEY,
@@ -87,7 +85,7 @@ function App({ config }) {
   return { start, stop, server };
 
   async function start() {
-    await mongoConnection;
+    await mongoConnection.asPromise();
 
     await classifier.initialize();
 
