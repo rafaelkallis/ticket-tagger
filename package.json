@@ -58,7 +58,7 @@
     "passport-github": "1.1.0",
     "rate-limiter-flexible": "2.2.1",
     "yaml": "2.0.0-4",
-    "yargs": "16.2.0"
+    "yargs": "17.2.1"
   },
   "devDependencies": {
     "eslint": "7.32.0",
