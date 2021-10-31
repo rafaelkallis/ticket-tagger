@@ -292,12 +292,9 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
     }
     if (updatedRepositoryConfig.labels !== undefined) {
       updatedRepositoryConfig.labels = Object.fromEntries(
-        Object.entries(
-          updatedRepositoryConfig.labels || {}
-        ).map(([key, label]) => [
-          key,
-          { ...label, enabled: Boolean(label.enabled) },
-        ])
+        Object.entries(updatedRepositoryConfig.labels || {}).map(
+          ([key, label]) => [key, { ...label, enabled: Boolean(label.enabled) }]
+        )
       );
     }
     if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
@@ -330,9 +327,10 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
   });
 
   app.get("/:owner", async function handleListRepositories(req, res) {
-    res.locals.repositories = await req.githubOAuthClient.listRepositoriesByInstallationId(
-      { installationId: res.locals.installation.id }
-    );
+    res.locals.repositories =
+      await req.githubOAuthClient.listRepositoriesByInstallationId({
+        installationId: res.locals.installation.id,
+      });
     res.render("owner", _.pick(req.query, ["new"]));
   });
 
