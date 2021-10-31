@@ -42,7 +42,7 @@
     "dotenv": "10.0.0",
     "envalid": "7.1.0",
     "express": "5.0.0-alpha.8",
-    "express-session": "1.17.1",
+    "express-session": "1.17.2",
     "fasttext": "1.0.0",
     "helmet": "4.6.0",
     "ipaddr.js": "2.0.1",
