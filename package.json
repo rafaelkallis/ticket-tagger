@@ -37,7 +37,7 @@
     "applicationinsights": "2.1.8",
     "applicationinsights-native-metrics": "0.0.6",
     "chalk": "4.1.2",
-    "connect-mongo": "4.5.0",
+    "connect-mongo": "4.6.0",
     "deep-object-diff": "1.1.0",
     "dotenv": "10.0.0",
     "envalid": "7.2.2",
