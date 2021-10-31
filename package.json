@@ -39,7 +39,7 @@
     "chalk": "4.1.1",
     "connect-mongo": "4.4.1",
     "deep-object-diff": "1.1.0",
-    "dotenv": "8.2.0",
+    "dotenv": "10.0.0",
     "envalid": "7.1.0",
     "express": "5.0.0-alpha.8",
     "express-session": "1.17.1",
