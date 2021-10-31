@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-color-mode="{{ theme | default("auto") }}" data-light-theme="light" data-dark-theme="dark_dimmed">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Ticket Tagger</title>
+
+  {% block links %}
+  <link href="/img/favicon.png" rel="icon" type="image/png" sizes="41x41">
+  <link href="/css/primer.css" rel="stylesheet" />
+  {% endblock %}
+</head>
+
+<body>
+  <header class="Header">
+    <div class="{% if not installation %}container-xl{% endif %} width-full d-flex">
+      <div class="Header-item Header-item--full">
+        <a href="/" class="Header-link f4 d-flex flex-items-center">
+          <img width="41" class="mt-n1 mb-n1 mr-1" alt="tickettagger" src="/img/favicon.png">
+          <span>Ticket Tagger</span>
+        </a>
+      </div>
+      {% if installation %}
+      <div class="Header-item mr-0">
+        <details class="dropdown details-reset details-overlay d-inline-block">
+          <summary class="Header-link p-2 d-inline" aria-haspopup="true">
+            {% octicon "plus" %}
+            <div class="dropdown-caret"></div>
+          </summary>
+          <div class="dropdown-menu dropdown-menu-sw">
+            <a class="dropdown-item" href="{{ installation.html_url }}">Add repository</a>
+            <a class="dropdown-item" href="{{ app.html_url }}/installations/new">Add account</a>
+          </div>
+        </details>
+      </div>
+      <div class="Header-item mr-0">
+        <details class="dropdown details-reset details-overlay d-inline-block">
+          <summary class="Header-link p-2 d-inline" aria-haspopup="true">
+            <img class="avatar mr-1" height="20" alt="@{{ installation.account.login }}" src="{{ installation.account.avatar_url }}" width="20">
+            {{ installation.account.login }}
+            <div class="dropdown-caret"></div>
+          </summary>
+          <ul class="dropdown-menu dropdown-menu-sw">
+            <li class="dropdown-header">
+              {% octicon "arrow-switch", class="mr-1" %} Switch accounts
+            </li>
+            {% for installation in installations %}
+            <li>
+              <a class="dropdown-item" href="/{{ installation.account.login }}">
+                <img class="avatar" height="20" alt="@{{ installation.account.login }}" src="{{ installation.account.avatar_url }}" width="20">
+                {{ installation.account.login }}
+              </a>
+            </li>
+            {% endfor %}
+            {# <a class="dropdown-item text-center" href="https://github.com/apps/ticket-tagger/installations/new">{% octicon "plus-circle" %}</a> #}
+            <li class="dropdown-divider" role="separator"></li>
+            <li>
+              <form action="/logout" method="POST">
+                <button class="btn btn-invisible Link--primary" type="submit" class="dropdown-item">Sign out</button>
+              </form>
+            </li>
+          </ul>
+        </details>
+      </div>
+      {% elif user %}
+      <form action="/logout" method="POST">
+        <div class="Header-item mr-0">
+          <button class="Header-link btn btn-outline" href="/login">Sign out</button>
+        </div>
+      </form>
+      {% else %}
+      <div class="Header-item mr-0">
+        <a class="Header-link btn btn-outline" href="/login">Sign in</a>
+      </div>
+      {% endif %}
+    </div>
+  </header>
+  {% if suspended %}
+  <div class="flash flash-full flash-warn">
+    <div class="container-lg">
+      You have suspended Ticket Tagger on this account.
+      <a href="{{ installation.html_url }}" class="btn btn-primary primary flash-action">
+        Unsuspend
+      </a>
+    </div>
+  </div>
+  {% endif %}
+  {% block body %}
+  {% endblock %}
+  {# <footer class="footer container-xl width-full p-responsive" role="contentinfo">
+    <div class="position-relative d-flex flex-row-reverse flex-lg-row flex-wrap flex-lg-nowrap flex-justify-center flex-lg-justify-between pt-6 pb-2 mt-6 f6 color-text-secondary border-top color-border-secondary ">
+      <ul class="list-style-none d-flex flex-wrap col-12 col-lg-5 flex-justify-center flex-lg-justify-between mb-2 mb-lg-0">
+        <li class="mr-3 mr-lg-0">© <span id="copyright-year"></span> Rafael Kallis</li>
+        <li class="mr-3 mr-lg-0"><a href="#">Terms</a></li>
+        <li class="mr-3 mr-lg-0"><a href="#">Privacy</a></li>
+      </ul>
+
+      <ul class="list-style-none d-flex flex-wrap col-12 col-lg-5 flex-justify-center flex-lg-justify-between mb-2 mb-lg-0">
+        <li class="mr-3 mr-lg-0"><a href="https://github.com/rafaelkallis">GitHub</a></li>
+        <li class=""><a href="https://linkedin.com/rafaelkallis">LinkedIn</a></li>
+      </ul>
+    </div>
+    <div class="d-flex flex-justify-center pb-6">
+      <span class="f6 color-text-tertiary"></span>
+    </div>
+  </footer> #}
+  {% block scripts %}
+  <script src="/js/jquery.min.js"></script>
+  <script src="/js/_base.js"></script>
+  {% endblock %}
+</body>
+
+</html>

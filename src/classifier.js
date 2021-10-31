@@ -29,8 +29,17 @@ const fasttext = require("fasttext");
 const fetch = require("node-fetch");
 
 class Classifier {
-  constructor(modelFilepath) {
-    this.fasttextClassifier = new fasttext.Classifier(modelFilepath);
+  constructor({ fasttextClassifier }) {
+    this.fasttextClassifier = fasttextClassifier;
+  }
+
+  static createFromRemote({ config, modelUri }) {
+    return new RemoteModelClassifier({ config, modelUri });
+  }
+
+  static createFromLocal({ modelPath }) {
+    const fasttextClassifier = new fasttext.Classifier(modelPath);
+    return new Classifier({ fasttextClassifier });
   }
 
   /**
@@ -50,16 +59,23 @@ class Classifier {
   }
 }
 
-class ClassifierFactory {
-  constructor({ config }) {
+class RemoteModelClassifier extends Classifier {
+  constructor({ config, modelUri }) {
+    super({ fasttextClassifier: null });
     this.config = config;
+    this.modelUri = modelUri;
   }
 
-  async createClassifierFromRemote({ modelUri }) {
+  async predict(text) {
+    if (!this.fasttextClassifier) {
+      throw new Error("Remote model is not initialized.");
+    }
+    return super.predict(text);
+  }
+
+  async initialize() {
     console.info("checking latest model");
-    const latestModelVersion = await this._fetchLatestVersion({
-      uri: modelUri,
-    });
+    const latestModelVersion = await this._fetchRemoteModelVersion();
     console.info(`latest model version: ${latestModelVersion}`);
     const modelPath = path.join(
       this.config.MODEL_DIR,
@@ -69,16 +85,10 @@ class ClassifierFactory {
       console.info("latest model found locally");
     } else {
       console.info("latest model not found locally");
-      await this._fetchLatestModel({ modelUri, modelPath });
+      await this._fetchRemoteModel({ modelPath });
     }
-    return this.createClassifierFromLocal({ modelPath });
-  }
-
-  async createClassifierFromLocal({ modelPath }) {
-    if (!(await this._existsLocally({ path: modelPath }))) {
-      throw new Error(`File ${modelPath} does not exist.`);
-    }
-    return new Classifier(modelPath);
+    this.fasttextClassifier = new fasttext.Classifier(modelPath);
+    return this;
   }
 
   async _existsLocally({ path }) {
@@ -88,8 +98,8 @@ class ClassifierFactory {
       .catch(() => false);
   }
 
-  async _fetchLatestVersion({ uri }) {
-    const response = await fetch(uri, { method: "HEAD" });
+  async _fetchRemoteModelVersion() {
+    const response = await fetch(this.modelUri, { method: "HEAD" });
     const modelId = response.headers.get("ETag");
     if (!modelId) {
       throw new Error('no "ETag" header found');
@@ -97,11 +107,11 @@ class ClassifierFactory {
     return modelId;
   }
 
-  async _fetchLatestModel({ modelUri, modelPath }) {
+  async _fetchRemoteModel({ modelPath }) {
     console.info("fetching latest model");
-    const response = await fetch(modelUri);
+    const response = await fetch(this.modelUri);
     await pipeline(response.body, fs.createWriteStream(modelPath));
   }
 }
 
-module.exports = { Classifier, ClassifierFactory };
+module.exports = { Classifier };

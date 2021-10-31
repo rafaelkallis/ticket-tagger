@@ -26,18 +26,16 @@ jest.setTimeout(5 * 60 * 1000);
 const crypto = require("crypto");
 const nock = require("nock");
 const request = require("supertest");
-const App = require("./app");
 const config = require("./config");
+const { App } = require("./App");
 
 const requestDelayMilliseconds = 100;
 
 describe("app integration test", () => {
   let app;
   let installationAccessToken;
-  let getInstallationPermissionsScope;
-  let getInstallationPermissionResult;
-  let createRepositoryAccessTokenScope;
-  let createRepositoryAccessTokenResult;
+  let createInstallationAccessTokenScope;
+  let createInstallationAccessTokenResult;
   let getRepositoryConfigScope;
   let getRepositoryConfigResult;
   let setLabelsScope;
@@ -48,14 +46,15 @@ describe("app integration test", () => {
   let signatureSha256;
 
   beforeAll(async () => {
-    app = await App();
+    app = new App({ config });
+    await app.start();
   });
 
   beforeEach(() => {
     installationAccessToken = `access-token-${Date.now()}`;
 
-    getInstallationPermissionsScope = nock(`https://api.github.com`)
-      .get(`/app/installations/${payload.installation.id}`)
+    createInstallationAccessTokenScope = nock(`https://api.github.com`)
+      .post(`/app/installations/${payload.installation.id}/access_tokens`)
       .matchHeader(
         "Authorization",
         /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/
@@ -63,10 +62,11 @@ describe("app integration test", () => {
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Accept", "application/vnd.github.v3+json")
       .delay(requestDelayMilliseconds)
-      .reply(() => getInstallationPermissionResult);
-    getInstallationPermissionResult = [
+      .reply(() => createInstallationAccessTokenResult);
+    createInstallationAccessTokenResult = [
       200,
       {
+        token: installationAccessToken,
         permissions: {
           metadata: "read",
           issues: "write",
@@ -75,34 +75,20 @@ describe("app integration test", () => {
       },
     ];
 
-    createRepositoryAccessTokenScope = nock(`https://api.github.com`)
-      .post(`/app/installations/${payload.installation.id}/access_tokens`, {
-        repository_ids: [payload.repository.id],
-      })
-      .matchHeader(
-        "Authorization",
-        /^Bearer [A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+$/
-      )
-      .matchHeader("User-Agent", "Ticket-Tagger")
-      .matchHeader("Content-Type", "application/json")
-      .matchHeader("Accept", "application/vnd.github.v3+json")
-      .delay(requestDelayMilliseconds)
-      .reply(() => createRepositoryAccessTokenResult);
-    createRepositoryAccessTokenResult = [
-      200,
-      { token: installationAccessToken },
-    ];
-
     getRepositoryConfigScope = nock("https://api.github.com")
       .get(
-        `/repos/${payload.repository.full_name}/contents/.tickettagger/config.yml`
+        `/repos/${payload.repository.full_name}/contents/.github/tickettagger.yml`
       )
       .matchHeader("Authorization", `token ${installationAccessToken}`)
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Accept", "application/vnd.github.v3+json")
       .delay(requestDelayMilliseconds)
       .reply(() => getRepositoryConfigResult);
-    getRepositoryConfigResult = [200, { content: "" }];
+    getRepositoryConfigResult = [
+      200,
+      { type: "file", encoding: "base64", content: "" },
+      { ETag: `Test-${Date.now()}` },
+    ];
 
     setLabelsScope = nock("https://api.github.com")
       .put(`/repos/${payload.repository.full_name}/issues/62/labels`)
@@ -138,8 +124,12 @@ describe("app integration test", () => {
     nock.cleanAll();
   });
 
+  afterAll(async () => {
+    await app.stop();
+  });
+
   test("integration", async () => {
-    const response = await request(app)
+    const response = await request(app.server)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
@@ -149,17 +139,16 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(200);
 
-    getInstallationPermissionsScope.done();
-    createRepositoryAccessTokenScope.done();
+    createInstallationAccessTokenScope.done();
     getRepositoryConfigScope.done();
     setLabelsScope.done();
     revokeAccessTokenScope.done();
   });
 
   test("when no issues write permission should not perform any action", async () => {
-    delete getInstallationPermissionResult[1].permissions.issues;
+    delete createInstallationAccessTokenResult[1].permissions.issues;
 
-    const response = await request(app)
+    const response = await request(app.server)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
@@ -169,17 +158,16 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(200);
 
-    getInstallationPermissionsScope.done();
-    expect(createRepositoryAccessTokenScope.isDone()).toBeFalsy();
+    createInstallationAccessTokenScope.done();
     expect(getRepositoryConfigScope.isDone()).toBeFalsy();
     expect(setLabelsScope.isDone()).toBeFalsy();
     expect(revokeAccessTokenScope.isDone()).toBeFalsy();
   });
 
   test("when no contents read permission should not get repository config", async () => {
-    delete getInstallationPermissionResult[1].permissions.single_file;
+    delete createInstallationAccessTokenResult[1].permissions.single_file;
 
-    const response = await request(app)
+    const response = await request(app.server)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
@@ -189,15 +177,14 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(200);
 
-    getInstallationPermissionsScope.done();
-    createRepositoryAccessTokenScope.done();
+    createInstallationAccessTokenScope.done();
     expect(getRepositoryConfigScope.isDone()).toBeFalsy();
     setLabelsScope.done();
     revokeAccessTokenScope.done();
   });
 
   test("when signature is invalid should reject", async () => {
-    const response = await request(app)
+    const response = await request(app.server)
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues.opened")
@@ -207,8 +194,7 @@ describe("app integration test", () => {
 
     expect(response.status).toBe(400);
 
-    expect(getInstallationPermissionsScope.isDone()).toBeFalsy();
-    expect(createRepositoryAccessTokenScope.isDone()).toBeFalsy();
+    expect(createInstallationAccessTokenScope.isDone()).toBeFalsy();
     expect(getRepositoryConfigScope.isDone()).toBeFalsy();
     expect(setLabelsScope.isDone()).toBeFalsy();
     expect(revokeAccessTokenScope.isDone()).toBeFalsy();
