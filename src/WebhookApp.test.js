@@ -101,7 +101,7 @@ describe("app integration test", () => {
     setLabelsResult = [200];
 
     revokeAccessTokenScope = nock("https://api.github.com")
-      .delete("/app/installation/token")
+      .delete("/installation/token")
       .matchHeader("Authorization", `token ${installationAccessToken}`)
       .matchHeader("User-Agent", "Ticket-Tagger")
       .matchHeader("Accept", "application/vnd.github.v3+json")

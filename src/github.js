@@ -342,7 +342,7 @@ class GitHubInstallationClient extends GitHubClient {
   }
 
   async revokeAccessToken() {
-    const url = this._url("/app/installation/token");
+    const url = this._url("/installation/token");
     const response = await fetch(url, {
       method: "DELETE",
       headers: this._headers(),
