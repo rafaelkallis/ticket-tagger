@@ -34,7 +34,7 @@
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "dependencies": {
     "@octokit/webhooks": "9.17.0",
-    "applicationinsights": "2.1.8",
+    "applicationinsights": "2.1.9",
     "applicationinsights-native-metrics": "0.0.6",
     "chalk": "4.1.2",
     "connect-mongo": "4.6.0",
