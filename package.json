@@ -41,7 +41,7 @@
     "deep-object-diff": "1.1.7",
     "dotenv": "10.0.0",
     "envalid": "7.2.2",
-    "express": "5.0.0-alpha.8",
+    "express": "5.0.0-beta.1",
     "express-session": "1.17.2",
     "fasttext": "1.0.0",
     "helmet": "4.6.0",
