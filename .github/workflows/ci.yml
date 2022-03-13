@@ -1,9 +1,8 @@
 name: Continuous Integration
 
 on:
-  push:
-    branches: [master]
-  pull_request:
+  pull_request_target:
+    branches: [prod, beta]
 
 jobs:
   build:
@@ -24,6 +23,7 @@ jobs:
         model_uri: https://tickettagger.blob.core.windows.net/models/model.bin
       run: |
         echo "::set-output name=version::$(curl --head '${{ env.model_uri }}' --silent | grep -oP 'ETag: \K0x[0-9A-Fa-f]+')"
+        
     - name: Cache model
       uses: actions/cache@v2
       id: cache-model
@@ -32,6 +32,7 @@ jobs:
         key: model-${{ steps.get-latest-model-version.outputs.version }}
         restore-keys: |
           model-
+          
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
@@ -47,12 +48,15 @@ jobs:
           node_modules-${{ matrix.ubuntu-version }}-${{ matrix.node-version }}-
           node_modules-${{ matrix.ubuntu-version }}-
           node_modules-
+          
     - name: Install
       if: steps.cache-node_modules.outputs.cache-hit != 'true'
       run: npm ci
+      
     - name: Test
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
       run: npm test
+      
     # - name: Test cli benchmark
     #   run: node bin/tickettagger.js benchmark trivial 30k 30k --minCount 50
