@@ -56,7 +56,7 @@
     "nunjucks-octicons-extension": "1.0.1",
     "passport": "0.5.0",
     "passport-github": "1.1.0",
-    "rate-limiter-flexible": "2.3.2",
+    "rate-limiter-flexible": "2.3.6",
     "yaml": "2.0.0-8",
     "yargs": "17.2.1"
   },
@@ -68,7 +68,7 @@
     "eslint-plugin-prettier": "4.0.0",
     "eslint-plugin-promise": "5.1.1",
     "jest": "27.5.1",
-    "natural": "5.1.1",
+    "natural": "5.1.13",
     "nock": "13.2.4",
     "object-hash": "2.2.0",
     "prettier": "2.4.1",
