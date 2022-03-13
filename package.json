@@ -51,7 +51,7 @@
     "lodash": "4.17.21",
     "ml-confusion-matrix": "0.4.0",
     "mongoose": "6.0.12",
-    "node-fetch": "2.6.6",
+    "node-fetch": "2.6.7",
     "nunjucks": "3.2.3",
     "nunjucks-octicons-extension": "1.0.1",
     "passport": "0.5.0",
