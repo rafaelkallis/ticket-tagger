@@ -72,7 +72,7 @@
     "nock": "13.2.4",
     "object-hash": "2.2.0",
     "prettier": "2.4.1",
-    "supertest": "6.1.6"
+    "supertest": "6.2.2"
   },
   "jest": {
     "testEnvironment": "node"
