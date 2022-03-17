@@ -71,7 +71,7 @@
     "natural": "5.1.13",
     "nock": "13.2.4",
     "object-hash": "2.2.0",
-    "prettier": "2.4.1",
+    "prettier": "2.6.0",
     "supertest": "6.2.2"
   },
   "jest": {
