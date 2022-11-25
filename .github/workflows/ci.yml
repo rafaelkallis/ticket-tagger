@@ -10,8 +10,8 @@ jobs:
   build:
     strategy:
       matrix:
-        ubuntu-version: [ubuntu-18.04, ubuntu-20.04]
-        node-version: [12.x, 14.x]
+        ubuntu-version: [ubuntu-20.04, ubuntu-22.04]
+        node-version: [14.x]
     runs-on: ${{ matrix.ubuntu-version }}
 
     steps:
@@ -23,11 +23,12 @@ jobs:
       shell: bash
       env:
         model_uri: https://tickettagger.blob.core.windows.net/models/model.bin
+      # echo "::set-output name=version::$(curl --head '${{ env.model_uri }}' --silent | grep -oP 'ETag: \K0x[0-9A-Fa-f]+')"
       run: |
-        echo "::set-output name=version::$(curl --head '${{ env.model_uri }}' --silent | grep -oP 'ETag: \K0x[0-9A-Fa-f]+')"
+        echo "version=$(curl --head '${{ env.model_uri }}' --silent | grep -oP 'ETag: \K0x[0-9A-Fa-f]+')" >> $GITHUB_OUTPUT
         
     - name: Cache model
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache-model
       with:
         path: ~/.tickettagger/models
@@ -41,7 +42,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
         
     - name: Cache node_modules
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache-node_modules
       with:
         path: node_modules
