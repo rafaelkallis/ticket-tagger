@@ -3,7 +3,8 @@ name: Continuous Integration
 on: 
   push: 
     branches: [prod, beta]
-  pull_request_target:
+  pull_request:
+    branches: [prod, beta]
 
 jobs:
   build:
