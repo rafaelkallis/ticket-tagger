@@ -1,5 +1,6 @@
 {
-  "name": "Node.js",
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "tickettagger",
   "build": {
     "dockerfile": "Dockerfile"
   },
@@ -7,12 +8,16 @@
     "docker-in-docker": "latest",
     "node": "12"
   },
-  "settings": {},
-  "extensions": [
-    "ms-azuretools.vscode-docker",
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode"
-  ],
+  "customizations": {
+    "vscode": {
+      "settings": {},
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
   "postCreateCommand": "npm install",
   "remoteUser": "vscode"
 }
