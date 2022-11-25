@@ -27,7 +27,7 @@ jobs:
         echo "::set-output name=version::$(curl --head '${{ env.model_uri }}' --silent | grep -oP 'ETag: \K0x[0-9A-Fa-f]+')"
         
     - name: Cache model
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache-model
       with:
         path: ~/.tickettagger/models
@@ -41,7 +41,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
         
     - name: Cache node_modules
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache-node_modules
       with:
         path: node_modules
