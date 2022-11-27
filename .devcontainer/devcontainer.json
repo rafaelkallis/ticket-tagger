@@ -6,7 +6,7 @@
   },
   "features": {
     "docker-in-docker": "latest",
-    "node": "14"
+    "node": "18"
   },
   "customizations": {
     "vscode": {
