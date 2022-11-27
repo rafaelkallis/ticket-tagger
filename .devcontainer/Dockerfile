@@ -1,14 +1,14 @@
-# See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.194.0/containers/javascript-node/.devcontainer/base.Dockerfile
+# https://hub.docker.com/_/microsoft-vscode-devcontainers
+FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu-20.04
 
-FROM mcr.microsoft.com/vscode/devcontainers/javascript-node:12
-
-# [Optional] Uncomment this section to install additional OS packages.
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-#     && apt-get -y install --no-install-recommends <your-package-list-here>
-
-# [Optional] Uncomment if you want to install an additional version of node using nvm
-# ARG EXTRA_NODE_VERSION=10
-# RUN su node -c "source /usr/local/share/nvm/nvm.sh && nvm install ${EXTRA_NODE_VERSION}"
-
-# [Optional] Uncomment if you want to install more global node modules
-# RUN su node -c "npm install -g <your-package-list-here>"
+RUN export DEBIAN_FRONTEND=noninteractive \
+	&& apt-get update \
+	# required packages for adding new lists
+	&& apt-get -y install --no-install-recommends \
+		apt-transport-https ca-certificates dirmngr software-properties-common \
+	# install packages
+	&& apt-get update \
+	&& apt-get -y install --no-install-recommends \
+		# https://code.visualstudio.com/docs/remote/containers#_sharing-gpg-keys
+		gnupg2 \
+	&& rm -rf /var/lib/apt/lists/*

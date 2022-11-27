@@ -1,6 +1,7 @@
 /**
- * @license Ticket Tagger automatically predicts and labels issue types.
- * Copyright (C) 2018-2021  Rafael Kallis
+ * @license AGPL-3.0
+ * Ticket Tagger automatically predicts and labels issue types.
+ * Copyright (C) 2018-2023  Rafael Kallis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -37,8 +38,6 @@ function App({ config }) {
   const mongoConnection = mongoose.createConnection(config.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    useCreateIndex: true,
-    useFindAndModify: true,
   });
   mongoConnection.plugin(encryptionPlugin, {
     key: config.MONGO_ENCRYPTION_KEY,
@@ -84,10 +83,10 @@ function App({ config }) {
     });
   });
 
-  return { start, stop, server };
+  return { start, stop, server, webhookApp };
 
   async function start() {
-    await mongoConnection;
+    await mongoConnection.asPromise();
 
     await classifier.initialize();
 

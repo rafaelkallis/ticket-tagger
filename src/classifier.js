@@ -1,6 +1,7 @@
 /**
- * @license Ticket Tagger automatically predicts and labels issue types.
- * Copyright (C) 2018-2021  Rafael Kallis
+ * @license AGPL-3.0
+ * Ticket Tagger automatically predicts and labels issue types.
+ * Copyright (C) 2018-2023  Rafael Kallis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -25,12 +26,14 @@ const path = require("path");
 const { promisify } = require("util");
 const fs = require("fs");
 const pipeline = promisify(require("stream").pipeline);
-const fasttext = require("fasttext");
+const { FastText } = require("@rafaelkallis/fasttext");
 const fetch = require("node-fetch");
 
 class Classifier {
-  constructor({ fasttextClassifier }) {
-    this.fasttextClassifier = fasttextClassifier;
+  constructor({ modelPath }) {
+    this._modelPath = modelPath;
+    this._initialized = false;
+    this._fasttext = null;
   }
 
   static createFromRemote({ config, modelUri }) {
@@ -38,8 +41,7 @@ class Classifier {
   }
 
   static createFromLocal({ modelPath }) {
-    const fasttextClassifier = new fasttext.Classifier(modelPath);
-    return new Classifier({ fasttextClassifier });
+    return new Classifier({ modelPath });
   }
 
   /**
@@ -49,57 +51,57 @@ class Classifier {
    * @returns {[string, number]} A tuple containing the predicted label and a similarity score.
    */
   async predict(text) {
+    if (!this._initialized) throw new Error("not initialized");
     // return [['bug','enhancement','question'][(Math.random() * 2.9999999999999999)|0],0];
-    const [prediction] = await this.fasttextClassifier.predict(text);
+    const [prediction] = await this._fasttext.predict(text);
     if (!prediction) {
       return [null, 0];
     }
-    const { label, value } = prediction;
-    return [label.substring(9), value];
+    return prediction;
+  }
+
+  async initialize() {
+    if (this._initialized) throw new Error("already initialized");
+    this._fasttext = await FastText.from(this._modelPath);
+    this._initialized = true;
+    return this;
   }
 }
 
 class RemoteModelClassifier extends Classifier {
   constructor({ config, modelUri }) {
-    super({ fasttextClassifier: null });
-    this.config = config;
-    this.modelUri = modelUri;
-  }
-
-  async predict(text) {
-    if (!this.fasttextClassifier) {
-      throw new Error("Remote model is not initialized.");
-    }
-    return super.predict(text);
+    super({ modelPath: null });
+    this._config = config;
+    this._modelUri = modelUri;
   }
 
   async initialize() {
+    if (this._initialized) throw new Error("already initialized");
     console.info("checking latest model");
     const latestModelVersion = await this._fetchRemoteModelVersion();
     console.info(`latest model version: ${latestModelVersion}`);
-    const modelPath = path.join(
-      this.config.MODEL_DIR,
+    this._modelPath = path.join(
+      this._config.MODEL_DIR,
       `${latestModelVersion}.bin`
     );
-    if (await this._existsLocally({ path: modelPath })) {
+    if (await this._existsLocally({ path: this._modelPath })) {
       console.info("latest model found locally");
     } else {
       console.info("latest model not found locally");
-      await this._fetchRemoteModel({ modelPath });
+      await this._fetchRemoteModel({ modelPath: this._modelPath });
     }
-    this.fasttextClassifier = new fasttext.Classifier(modelPath);
-    return this;
+    return super.initialize();
   }
 
-  async _existsLocally({ path }) {
+  async _existsLocally() {
     return fs.promises
-      .access(path, fs.constants.R_OK | fs.constants.W_OK)
+      .access(this._modelPath, fs.constants.R_OK | fs.constants.W_OK)
       .then(() => true)
       .catch(() => false);
   }
 
   async _fetchRemoteModelVersion() {
-    const response = await fetch(this.modelUri, { method: "HEAD" });
+    const response = await fetch(this._modelUri, { method: "HEAD" });
     const modelId = response.headers.get("ETag");
     if (!modelId) {
       throw new Error('no "ETag" header found');
@@ -107,10 +109,10 @@ class RemoteModelClassifier extends Classifier {
     return modelId;
   }
 
-  async _fetchRemoteModel({ modelPath }) {
+  async _fetchRemoteModel() {
     console.info("fetching latest model");
-    const response = await fetch(this.modelUri);
-    await pipeline(response.body, fs.createWriteStream(modelPath));
+    const response = await fetch(this._modelUri);
+    await pipeline(response.body, fs.createWriteStream(this._modelPath));
   }
 }
 

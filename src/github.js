@@ -1,6 +1,7 @@
 /**
- * @license Ticket Tagger automatically predicts and labels issue types.
- * Copyright (C) 2018-2021  Rafael Kallis
+ * @license AGPL-3.0
+ * Ticket Tagger automatically predicts and labels issue types.
+ * Copyright (C) 2018-2023  Rafael Kallis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -262,12 +263,10 @@ class GitHubAppClient extends GitHubClient {
   }
 
   async createInstallationClient({ installation }) {
-    const {
-      accessToken,
-      permissions,
-    } = await this._createInstallationAccessToken({
-      installation,
-    });
+    const { accessToken, permissions } =
+      await this._createInstallationAccessToken({
+        installation,
+      });
     return new GitHubInstallationClient({
       ...this,
       accessToken,
@@ -344,7 +343,7 @@ class GitHubInstallationClient extends GitHubClient {
   }
 
   async revokeAccessToken() {
-    const url = this._url("/app/installation/token");
+    const url = this._url("/installation/token");
     const response = await fetch(url, {
       method: "DELETE",
       headers: this._headers(),
