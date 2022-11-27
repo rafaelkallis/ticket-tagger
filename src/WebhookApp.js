@@ -103,7 +103,7 @@ function WebhookApp({ config, classifier, appClient }) {
     ipWhitelist.clear();
   }
 
-  return { start, stop, middleware };
+  return { start, stop, middleware, webhooks };
 }
 
 class IpWhitelist {
