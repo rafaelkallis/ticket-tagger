@@ -2,16 +2,16 @@ name: Continuous Integration
 
 on: 
   push: 
-    branches: [prod, beta]
+    branches: [ prod, beta ]
   pull_request:
-    branches: [prod, beta]
+    branches: [ prod, beta ]
 
 jobs:
   build:
     strategy:
       matrix:
-        ubuntu-version: [ubuntu-20.04, ubuntu-22.04]
-        node-version: [14.x]
+        ubuntu-version: [ ubuntu-20.04, ubuntu-22.04 ]
+        node-version: [ 16.x, 18.x ]
     runs-on: ${{ matrix.ubuntu-version }}
 
     steps:
@@ -60,6 +60,3 @@ jobs:
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
       run: npm test
-      
-    # - name: Test cli benchmark
-    #   run: node bin/tickettagger.js benchmark trivial 30k 30k --minCount 50
