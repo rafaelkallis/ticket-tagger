@@ -82,7 +82,7 @@ function App({ config }) {
     });
   });
 
-  return { start, stop, server };
+  return { start, stop, server, webhookApp };
 
   async function start() {
     await mongoConnection.asPromise();

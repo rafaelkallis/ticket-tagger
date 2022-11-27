@@ -23,7 +23,6 @@
 
 jest.setTimeout(5 * 60 * 1000);
 
-const crypto = require("crypto");
 const nock = require("nock");
 const request = require("supertest");
 const config = require("./config");
@@ -42,7 +41,6 @@ describe("app integration test", () => {
   let setLabelsResult;
   let revokeAccessTokenScope;
   let revokeAccessTokenResult;
-  let signatureSha1;
   let signatureSha256;
 
   beforeAll(async () => {
@@ -50,7 +48,7 @@ describe("app integration test", () => {
     await app.start();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     installationAccessToken = `access-token-${Date.now()}`;
 
     createInstallationAccessTokenScope = nock(`https://api.github.com`)
@@ -109,15 +107,7 @@ describe("app integration test", () => {
       .reply(() => revokeAccessTokenResult);
     revokeAccessTokenResult = [204];
 
-    signatureSha1 = signPayload({
-      payload: JSON.stringify(payload),
-      algorithm: "sha1",
-    });
-
-    signatureSha256 = signPayload({
-      payload: JSON.stringify(payload),
-      algorithm: "sha256",
-    });
+    signatureSha256 = await app.webhookApp.webhooks.sign(payload);
   });
 
   afterEach(async () => {
@@ -133,7 +123,6 @@ describe("app integration test", () => {
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
-      .set("X-Hub-Signature", signatureSha1)
       .set("X-Hub-Signature-256", signatureSha256)
       .send(payload);
 
@@ -152,7 +141,6 @@ describe("app integration test", () => {
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
-      .set("X-Hub-Signature", signatureSha1)
       .set("X-Hub-Signature-256", signatureSha256)
       .send(payload);
 
@@ -171,7 +159,6 @@ describe("app integration test", () => {
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues")
-      .set("X-Hub-Signature", signatureSha1)
       .set("X-Hub-Signature-256", signatureSha256)
       .send(payload);
 
@@ -188,7 +175,6 @@ describe("app integration test", () => {
       .post("/webhook")
       .set("X-Github-Delivery", "123e4567-e89b-12d3-a456-426655440000")
       .set("X-Github-Event", "issues.opened")
-      .set("X-Hub-Signature", "non-sense")
       .set("X-Hub-Signature-256", "non-sense")
       .send(payload);
 
@@ -200,14 +186,6 @@ describe("app integration test", () => {
     expect(revokeAccessTokenScope.isDone()).toBeFalsy();
   });
 });
-
-function signPayload({ payload, algorithm }) {
-  const digest = crypto
-    .createHmac(algorithm, config.GITHUB_SECRET)
-    .update(payload)
-    .digest("hex");
-  return `${algorithm}=${digest}`;
-}
 
 const payload = {
   action: "opened",
