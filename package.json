@@ -3,33 +3,16 @@
   "version": "3.0.0-beta.1",
   "description": "Machine learning driven issue classification bot.",
   "license": "AGPL-3.0",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/rafaelkallis/ticket-tagger.git"
-  },
+  "repository": "github:rafaelkallis/ticket-tagger",
   "main": "src/index.js",
-  "bin": {
-    "tickettagger": "bin/tickettagger.js"
-  },
   "engines": {
     "node": "^14.x"
   },
   "scripts": {
     "start": "node src/index.js",
     "test": "jest",
-    "lint": "eslint --format codeframe src/*.js src/**/*.js bin/*.js",
-    "lint:fix": "eslint --fix --format codeframe src/*.js src/**/*.js bin/*.js",
-    "train": "node scripts/train.js",
-    "benchmark": "node scripts/benchmark.js",
-    "dataset": "npm run-script dataset:balanced",
-    "dataset:unbalanced": "wget https://tickettagger.blob.core.windows.net/datasets/dataset-labels-top3-30k-real.txt -O dataset.txt",
-    "dataset:balanced": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues.txt -O dataset.txt",
-    "dataset:english": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_english.txt -O dataset.txt",
-    "dataset:english:baseline": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_english_baseline.txt -O dataset.txt",
-    "dataset:nosnippet": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/544aabae57eaacc1fe817fa622ca49e785bc873a/issues_nosnippet_baseline.txt -O dataset.txt",
-    "dataset:nosnippet:baseline": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/544aabae57eaacc1fe817fa622ca49e785bc873a/issues_nosnippet_baseline.txt -O dataset.txt",
-    "dataset:vscode": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_vscode.txt -O dataset.txt",
-    "dataset:vscode:baseline": "wget https://gist.githubusercontent.com/rafaelkallis/6aa281b00d73d77fc843bd34f8184854/raw/8c10ebf2fd6f937f8667c660ea33d122bac739eb/issues_vscode_baseline.txt -O dataset.txt"
+    "lint": "eslint --format codeframe src/*.js src/**/*.js",
+    "lint:fix": "eslint --fix --format codeframe src/*.js src/**/*.js"
   },
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "dependencies": {
@@ -37,20 +20,17 @@
     "@rafaelkallis/fasttext": "0.2.0",
     "applicationinsights": "2.2.2",
     "applicationinsights-native-metrics": "0.0.7",
-    "chalk": "4.1.2",
     "connect-mongo": "4.6.0",
     "deep-object-diff": "1.1.9",
     "dotenv": "10.0.0",
     "envalid": "6.0.2",
     "express": "5.0.0-beta.1",
     "express-session": "1.17.2",
-    "fasttext": "1.0.0",
     "helmet": "5.0.2",
     "ipaddr.js": "2.0.1",
     "joi": "17.6.0",
     "jsonwebtoken": "8.5.1",
     "lodash": "4.17.21",
-    "ml-confusion-matrix": "0.4.0",
     "mongoose": "6.7.3",
     "node-fetch": "2.6.7",
     "nunjucks": "3.2.3",
@@ -58,8 +38,7 @@
     "passport": "0.6.0",
     "passport-github": "1.1.0",
     "rate-limiter-flexible": "2.4.1",
-    "yaml": "2.0.0-10",
-    "yargs": "17.6.2"
+    "yaml": "2.0.0-10"
   },
   "devDependencies": {
     "eslint": "8.11.0",
@@ -69,9 +48,7 @@
     "eslint-plugin-prettier": "4.0.0",
     "eslint-plugin-promise": "6.0.0",
     "jest": "27.5.1",
-    "natural": "5.1.13",
     "nock": "13.2.4",
-    "object-hash": "3.0.0",
     "prettier": "2.6.0",
     "supertest": "6.2.2"
   },
