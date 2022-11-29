@@ -46,7 +46,7 @@
     "eslint-plugin-jest": "27.1.6",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-prettier": "4.0.0",
-    "eslint-plugin-promise": "6.0.0",
+    "eslint-plugin-promise": "6.1.1",
     "jest": "27.5.1",
     "nock": "13.2.9",
     "prettier": "2.8.0",
