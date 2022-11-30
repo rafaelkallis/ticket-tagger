@@ -26,7 +26,7 @@
     "envalid": "6.0.2",
     "express": "5.0.0-beta.1",
     "express-session": "1.17.3",
-    "helmet": "6.0.0",
+    "helmet": "6.0.1",
     "ipaddr.js": "2.0.1",
     "joi": "17.7.0",
     "jsonwebtoken": "8.5.1",
