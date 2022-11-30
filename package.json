@@ -31,7 +31,7 @@
     "joi": "17.7.0",
     "jsonwebtoken": "8.5.1",
     "lodash": "4.17.21",
-    "mongoose": "6.7.3",
+    "mongoose": "6.7.4",
     "node-fetch": "2.6.7",
     "nunjucks": "3.2.3",
     "nunjucks-octicons-extension": "1.0.1",
