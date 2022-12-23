@@ -46,7 +46,23 @@ describe("app integration test", () => {
 
   beforeAll(async () => {
     app = new App({ config });
+
+    const getMetaResult = [
+      200,
+      {
+        hooks: [],
+      },
+    ];
+    const getMetaScope = nock(`https://api.github.com`)
+      .get(`/meta`)
+      .matchHeader("User-Agent", "Ticket-Tagger")
+      .matchHeader("Accept", "application/vnd.github.v3+json")
+      .delay(requestDelayMilliseconds)
+      .reply(() => getMetaResult);
+
     await app.start();
+
+    getMetaScope.done();
   });
 
   beforeEach(async () => {
