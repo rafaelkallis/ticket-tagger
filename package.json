@@ -16,7 +16,7 @@
   },
   "author": "Rafael Kallis <rk@rafaelkallis.com>",
   "dependencies": {
-    "@octokit/webhooks": "10.5.0",
+    "@octokit/webhooks": "10.5.1",
     "@rafaelkallis/fasttext": "0.2.0",
     "applicationinsights": "2.3.6",
     "applicationinsights-native-metrics": "0.0.8",
