@@ -18,7 +18,7 @@
   "dependencies": {
     "@octokit/webhooks": "10.5.1",
     "@rafaelkallis/fasttext": "0.2.0",
-    "applicationinsights": "2.3.6",
+    "applicationinsights": "2.4.0",
     "applicationinsights-native-metrics": "0.0.8",
     "connect-mongo": "4.6.0",
     "deep-object-diff": "1.1.9",
