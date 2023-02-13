@@ -28,7 +28,7 @@
     "express-session": "1.17.3",
     "helmet": "6.0.1",
     "ipaddr.js": "2.0.1",
-    "joi": "17.7.0",
+    "joi": "17.7.1",
     "jsonwebtoken": "9.0.0",
     "lodash": "4.17.21",
     "mongoose": "6.9.1",
