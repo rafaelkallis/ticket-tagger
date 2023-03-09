@@ -19,7 +19,7 @@
     "@octokit/webhooks": "10.7.0",
     "@rafaelkallis/fasttext": "0.2.0",
     "applicationinsights": "2.5.0",
-    "applicationinsights-native-metrics": "0.0.8",
+    "applicationinsights-native-metrics": "0.0.9",
     "connect-mongo": "4.6.0",
     "deep-object-diff": "1.1.9",
     "dotenv": "15.0.1",
