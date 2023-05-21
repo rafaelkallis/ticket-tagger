@@ -13,7 +13,8 @@
       "extensions": [
         "ms-azuretools.vscode-docker",
         "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
+        "esbenp.prettier-vscode",
+        "ronnidc.nunjucks"
       ]
     }
   },
