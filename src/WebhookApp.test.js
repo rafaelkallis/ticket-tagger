@@ -124,7 +124,9 @@ describe("app integration test", () => {
       .reply(() => revokeAccessTokenResult);
     revokeAccessTokenResult = [204];
 
-    signatureSha256 = await app.webhookApp.webhooks.sign(payload);
+    signatureSha256 = await app.webhookApp.webhooks.sign(
+      JSON.stringify(payload)
+    );
   });
 
   afterEach(async () => {
