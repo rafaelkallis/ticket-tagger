@@ -205,6 +205,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
   app.get("/404", (req, res) => res.render("404"));
   app.get("/429", (req, res) => res.render("429"));
   app.get("/access_denied", (req, res) => res.render("access_denied"));
+  app.get("/privacy", (req, res) => res.render("privacy"));
 
   app.get("/login", passport.authenticate("github"));
 
