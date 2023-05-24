@@ -38,7 +38,7 @@
     "passport": "0.6.0",
     "passport-github": "1.1.0",
     "rate-limiter-flexible": "2.4.1",
-    "yaml": "2.2.2"
+    "yaml": "2.3.0"
   },
   "devDependencies": {
     "eslint": "8.41.0",
