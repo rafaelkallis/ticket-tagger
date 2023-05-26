@@ -79,6 +79,7 @@
     </div>
     <form action="/{{ repository.full_name }}" method="POST">
       <fieldset {% if suspended %}disabled{% endif %}>
+        <input type="hidden" name="form" value="general" />
         <input type="hidden" name="sha" value="{{ config.sha }}" />
         <div class="Box">
           <ul>
@@ -133,9 +134,9 @@
     </p>
     <form action="/{{ repository.full_name }}" method="POST">
       <fieldset {% if suspended %}disabled{% endif %}>
+        <input type="hidden" name="form" value="threshold" />
+        <input type="hidden" name="sha" value="{{ config.sha }}" />
         <div class="Box mt-4">
-          <input type="hidden" name="sha" value="{{ config.sha }}" />
-
           <input
             id="threshold-value"
             name="threshold"
@@ -206,6 +207,7 @@
     </div>
     <form action="/{{ repository.full_name }}" method="POST">
       <fieldset {% if suspended %}disabled{% endif %}>
+        <input type="hidden" name="form" value="labels" />
         <input type="hidden" name="sha" value="{{ config.sha }}" />
         <div class="Box">
           {# <input type="hidden" name="labels.version" value="{{" config}} /> #}
@@ -221,12 +223,7 @@
                     id="check-label-{{ label }}"
                     type="checkbox"
                     name="labels[{{ label }}][enabled]"
-                    {%
-                    if
-                    labelConfig.enabled
-                    %}checked{%
-                    endif
-                    %}
+                    {% if labelConfig.enabled %}checked{% endif %}
                   />
                   <span class="status-indicator js-status-indicator"
                     >{% octicon "check", width="16" %}</span
