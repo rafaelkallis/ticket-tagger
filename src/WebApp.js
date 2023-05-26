@@ -281,24 +281,33 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
   });
 
   app.post("/:owner/:repo", async function handleUpdateRepo(req, res) {
-    let { sha, ...updatedRepositoryConfig } = req.body;
+    let { form, sha, ...updatedRepositoryConfig } = req.body;
     /* lost update problem check */
     if (res.locals.config.exists && sha !== res.locals.config.sha) {
       return res.status(409).render("repo", { errors: { conflict: true } });
     }
-    /* form booleans */
-    if (updatedRepositoryConfig.enabled !== undefined) {
+
+    if (form === "general") {
       updatedRepositoryConfig.enabled = Boolean(
         updatedRepositoryConfig.enabled
       );
     }
-    if (updatedRepositoryConfig.labels !== undefined) {
-      updatedRepositoryConfig.labels = Object.fromEntries(
-        Object.entries(updatedRepositoryConfig.labels || {}).map(
-          ([key, label]) => [key, { ...label, enabled: Boolean(label.enabled) }]
-        )
-      );
+
+    if (form === "threshold") {
+      // not implemented
     }
+
+    if (form === "labels") {
+      for (const [key, value] of Object.entries(
+        updatedRepositoryConfig.labels || []
+      )) {
+        updatedRepositoryConfig.labels[key] = {
+          ...value,
+          enabled: Boolean(value.enabled),
+        };
+      }
+    }
+
     if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
       return res.status(400).render("repo", { errors: { validation: true } });
     }
