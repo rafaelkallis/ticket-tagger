@@ -1,23 +1,29 @@
 {
-  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "tickettagger",
-  "build": {
-    "dockerfile": "Dockerfile"
-  },
+  "image": "mcr.microsoft.com/vscode/devcontainers/base:debian",
   "features": {
-    "docker-in-docker": "latest",
-    "node": "18"
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    }
   },
   "customizations": {
     "vscode": {
-      "settings": {},
+      "settings": {
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "/usr/bin/zsh"
+          }
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
       "extensions": [
         "ms-azuretools.vscode-docker",
         "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
+        "esbenp.prettier-vscode",
+        "ronnidc.nunjucks"
       ]
     }
   },
-  "postCreateCommand": "npm install",
-  "remoteUser": "vscode"
+  "postCreateCommand": "npm install"
 }

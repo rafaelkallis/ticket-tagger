@@ -2,20 +2,27 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch App",
-      "type": "pwa-node",
+      "name": "App",
+      "type": "node",
       "request": "launch",
-      "runtimeExecutable": "nodemon",
-      "program": "${workspaceFolder}/src/index.js",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run-script",
+        "start"
+      ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     },
     {
-      "name": "Attach to App",
-      "type": "pwa-node",
-      "request": "attach",
-      "restart": true,
-      "port": 9229
+      "name": "App Watch",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/nodemon",
+      "runtimeArgs": [
+        "start"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
     }
   ]
 }
