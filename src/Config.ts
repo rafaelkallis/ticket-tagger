@@ -52,7 +52,7 @@ const hexKeyList = envalid.makeValidator((input) => {
   return input;
 });
 
-const config = envalid.cleanEnv(process.env, {
+export const config = envalid.cleanEnv(process.env, {
   NODE_ENV: envalid.str({ choices: ["production", "test", "development"] }),
   SERVER_BASE_URL: envalid.url({ devDefault: "http://localhost:3000" }),
   PORT: envalid.port({ devDefault: 3000 }),
@@ -106,6 +106,4 @@ fs.mkdirSync(config.DATASET_DIR, { recursive: true });
 fs.mkdirSync(config.MODEL_DIR, { recursive: true });
 
 
-type Config = typeof config;
-
-export { config, Config };
+export type Config = typeof config;
