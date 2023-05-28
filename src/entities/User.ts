@@ -16,23 +16,22 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file cache record
+ * @file user
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
+import { Model, Schema } from "mongoose";
 
-const { Schema } = require("mongoose");
-
-const cacheRecordSchema = new Schema({
-  key: { type: String, required: true, index: true },
-  etag: { type: String, required: true },
-  payload: { type: Object, required: true, encrypted: true },
-  _ts: { type: Date, expires: 60 * 60 }, // cosmos db ttl
-});
-
-function CacheRecord(connection) {
-  return connection.model("CacheRecord", cacheRecordSchema);
+export interface UserState {
+  githubId: number;
+  accessToken: string;
+  _ts: Date;
 }
 
-module.exports = { CacheRecord };
+export type UserModel = Model<UserState>;
+
+export const userSchema = new Schema<UserState, UserModel>({
+  githubId: { type: Number, required: true, unique: true },
+  accessToken: { type: String, required: true, encrypted: true },
+  _ts: { type: Date, expires: 8 * 60 * 60 }, // cosmos db ttl
+});

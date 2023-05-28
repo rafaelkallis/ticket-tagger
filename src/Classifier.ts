@@ -22,25 +22,39 @@
 
 "use strict";
 
-const path = require("path");
-const { promisify } = require("util");
-const fs = require("fs");
-const pipeline = promisify(require("stream").pipeline);
-const { FastText } = require("@rafaelkallis/fasttext");
-const fetch = require("node-fetch");
+import path from "path";
+import { promisify } from "util";
+import fs from "fs"
+import { pipeline as _pipeline } from "stream";
+const pipeline = promisify(_pipeline);
+import { FastText } from "@rafaelkallis/fasttext";
+import fetch from "node-fetch";
+import { Config } from "./Config";
 
-class Classifier {
-  constructor({ modelPath }) {
+interface ClassifierOptions {
+  modelPath: string | null;
+}
+
+interface RemoteClassifierOptions {
+  config: Config;
+  modelUri: string;
+}
+
+export class Classifier {
+
+  protected _modelPath: string | null;
+  protected _fasttext: FastText | null;
+
+  constructor({ modelPath }: ClassifierOptions) {
     this._modelPath = modelPath;
-    this._initialized = false;
     this._fasttext = null;
   }
 
-  static createFromRemote({ config, modelUri }) {
+  static createFromRemote({ config, modelUri }: RemoteClassifierOptions) {
     return new RemoteModelClassifier({ config, modelUri });
   }
 
-  static createFromLocal({ modelPath }) {
+  static createFromLocal({ modelPath }: ClassifierOptions) {
     return new Classifier({ modelPath });
   }
 
@@ -50,8 +64,8 @@ class Classifier {
    * @param {string} text - The issue body.
    * @returns {[string, number]} A tuple containing the predicted label and a similarity score.
    */
-  async predict(text) {
-    if (!this._initialized) throw new Error("not initialized");
+  async predict(text: string): Promise<[string | null, number]> {
+    if (!this._fasttext) throw new Error("not initialized");
     // return [['bug','enhancement','question'][(Math.random() * 2.9999999999999999)|0],0];
     const [prediction] = await this._fasttext.predict(text);
     if (!prediction) {
@@ -60,23 +74,27 @@ class Classifier {
     return prediction;
   }
 
-  async initialize() {
-    if (this._initialized) throw new Error("already initialized");
+  async initialize(): Promise<Classifier> {
+    if (this._fasttext) throw new Error("already initialized");
+    if (!this._modelPath) throw new Error("no model path");
     this._fasttext = await FastText.from(this._modelPath);
-    this._initialized = true;
     return this;
   }
 }
 
 class RemoteModelClassifier extends Classifier {
-  constructor({ config, modelUri }) {
+
+  private readonly _config: Config;
+  private readonly _modelUri: string;
+
+  constructor({ config, modelUri }: RemoteClassifierOptions) {
     super({ modelPath: null });
     this._config = config;
     this._modelUri = modelUri;
   }
 
-  async initialize() {
-    if (this._initialized) throw new Error("already initialized");
+  async initialize(): Promise<Classifier> {
+    if (this._fasttext) throw new Error("already initialized");
     console.info("checking latest model");
     const latestModelVersion = await this._fetchRemoteModelVersion();
     console.info(`latest model version: ${latestModelVersion}`);
@@ -84,16 +102,17 @@ class RemoteModelClassifier extends Classifier {
       this._config.MODEL_DIR,
       `${latestModelVersion}.bin`
     );
-    if (await this._existsLocally({ path: this._modelPath })) {
+    if (await this._existsLocally()) {
       console.info("latest model found locally");
     } else {
       console.info("latest model not found locally");
-      await this._fetchRemoteModel({ modelPath: this._modelPath });
+      await this._fetchRemoteModel();
     }
     return super.initialize();
   }
 
-  async _existsLocally() {
+  async _existsLocally(): Promise<boolean> {
+    if (!this._modelPath) throw new Error("no model path");
     return fs.promises
       .access(this._modelPath, fs.constants.R_OK | fs.constants.W_OK)
       .then(() => true)
@@ -111,9 +130,8 @@ class RemoteModelClassifier extends Classifier {
 
   async _fetchRemoteModel() {
     console.info("fetching latest model");
-    const response = await fetch(this._modelUri);
+    if (!this._modelPath) throw new Error("no model path");
+    const response = await fetch(this._modelUri, {});
     await pipeline(response.body, fs.createWriteStream(this._modelPath));
   }
 }
-
-module.exports = { Classifier };

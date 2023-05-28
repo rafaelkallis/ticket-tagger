@@ -16,32 +16,39 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file index
+ * @file telemetry
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
+import { EventEmitter } from "events";
+import appInsights from "applicationinsights";
 
-const appInsights = require("applicationinsights");
-const config = require("./config");
-const telemetry = require("./telemetry");
+class Telemetry {
 
-if (config.isDevelopment) {
-  telemetry.attachConsole();
+  private readonly emitter: EventEmitter;
+
+  constructor() {
+    this.emitter = new EventEmitter();
+  }
+
+  event(name: string) {
+    this.emitter.emit("event", name);
+  }
+
+  onEvent(handler: (name: string) => void) {
+    this.emitter.on("event", handler);
+  }
+
+  attachConsole() {
+    this.onEvent((name) => console.info(`Event emitted: ${name}`));
+  }
+
+  attachAppInsights() {
+    if (!appInsights.defaultClient) {
+      return;
+    }
+    this.onEvent((name) => appInsights.defaultClient.trackEvent({ name }));
+  }
 }
 
-if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
-  appInsights
-    .setup(config.APPINSIGHTS_INSTRUMENTATIONKEY)
-    .setSendLiveMetrics(true)
-    .start();
-  telemetry.attachAppInsights();
-}
-
-const { App } = require("./App");
-
-const app = new App({ config });
-
-process.once("beforeExit", () => app.stop());
-
-app.start();
+export default new Telemetry();

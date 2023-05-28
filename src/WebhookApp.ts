@@ -20,20 +20,26 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
+import express from "express";
+import { Webhooks, createNodeMiddleware } from "@octokit/webhooks";
+import ipaddr from "ipaddr.js";
+import { Config } from "./Config";
+import { Classifier } from "./Classifier";
+import { GitHubAppClient, repositoryConfigDefaults } from "./Github";
+import telemetry from "./telemetry";
 
-const express = require("express");
-const { Webhooks, createNodeMiddleware } = require("@octokit/webhooks");
-const ipaddr = require("ipaddr.js");
-const telemetry = require("./telemetry");
-const { repositoryConfigDefaults } = require("./github");
+interface WebhookAppOptions {
+  config: Config;
+  classifier: Classifier;
+  appClient: GitHubAppClient;
+}
 
-function WebhookApp({ config, classifier, appClient }) {
+export function WebhookApp({ config, classifier, appClient }: WebhookAppOptions) {
   const webhooks = new Webhooks({ secret: config.GITHUB_SECRET });
 
-  webhooks.on("issues.opened", handleIssueOpened);
-  async function handleIssueOpened({ payload }) {
+  webhooks.on("issues.opened", async function handleIssueOpened({ payload }) {
     const { installation, repository, issue } = payload;
+    if (!installation) throw new Error("installation not found");
 
     const installationClient = await appClient.createInstallationClient({
       installation,
@@ -46,7 +52,8 @@ function WebhookApp({ config, classifier, appClient }) {
       repository,
     });
 
-    const repositoryConfig = installationClient.canRead("single_file")
+    // TODO remove any
+    const repositoryConfig: any = installationClient.canRead("single_file")
       ? await repositoryClient.getConfig().then(({ json }) => json)
       : repositoryConfigDefaults;
 
@@ -55,14 +62,14 @@ function WebhookApp({ config, classifier, appClient }) {
       `${issue.title} ${issue.body}`
     );
 
-    const label = repositoryConfig.labels[predictedLabelKey];
 
-    if (similarity > 0) {
+    if (predictedLabelKey && similarity > 0) {
+      const label = repositoryConfig.labels[predictedLabelKey];
       if (label.enabled) {
         /* update label */
         await repositoryClient.setIssueLabels({
           issue: issue.number,
-          labels: [...issue.labels, label.text],
+          labels: [...(issue.labels || []), label.text],
         });
       }
 
@@ -70,7 +77,7 @@ function WebhookApp({ config, classifier, appClient }) {
     }
 
     await installationClient.revokeAccessToken();
-  }
+  });
 
   webhooks.on("installation.created", async () => {
     telemetry.event("Installed");
@@ -108,15 +115,16 @@ function WebhookApp({ config, classifier, appClient }) {
 }
 
 class IpWhitelist {
+  private readonly _ipRanges: [ipaddr.IPv4 | ipaddr.IPv6, number][];
   constructor() {
     this._ipRanges = [];
   }
 
-  addRange(cidr) {
+  addRange(cidr: string) {
     this._ipRanges.push(ipaddr.parseCIDR(cidr));
   }
 
-  addRanges(cidrs) {
+  addRanges(cidrs: string[]) {
     cidrs.forEach((cidr) => this.addRange(cidr));
   }
 
@@ -124,12 +132,10 @@ class IpWhitelist {
     this._ipRanges.length = 0;
   }
 
-  contains(ip) {
+  contains(ip: string) {
     const addr = ipaddr.parse(ip);
     return this._ipRanges.some(
       (ipRange) => addr.kind === ipRange[0].kind && addr.match(ipRange)
     );
   }
 }
-
-module.exports = { WebhookApp };

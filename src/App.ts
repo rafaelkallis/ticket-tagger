@@ -20,46 +20,42 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
+import { promisify } from "util";
+import http from "http";
+import express from "express";
+import mongoose from "mongoose";
+import { encryptionPlugin } from "./mongooseEncryptionPlugin";
+import { Classifier } from "./Classifier";
+import { GitHubAppClient } from "./Github";
+import { WebApp } from "./WebApp";
+import { WebhookApp } from "./WebhookApp";
+import { Config } from "./Config";
+import { Entities } from "./entities";
 
-const { promisify } = require("util");
-const http = require("http");
-const express = require("express");
-const mongoose = require("mongoose");
-const { encryptionPlugin } = require("./mongooseEncryptionPlugin");
-const { Classifier } = require("./classifier");
-const { GitHubAppClient } = require("./github");
-const { WebApp } = require("./WebApp");
-const { WebhookApp } = require("./WebhookApp");
-const { User } = require("./entities/User");
-const { CacheRecord } = require("./entities/CacheRecord");
+interface AppOptions {
+  config: Config;
+}
 
-function App({ config }) {
-  const mongoConnection = mongoose.createConnection(config.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+interface ServerConnection {
+  end: () => void;
+  destroy: () => void;
+}
+
+export function App({ config }: AppOptions) {
+  const mongooseConnection = mongoose.createConnection(config.MONGO_URI);
+  mongooseConnection.plugin(encryptionPlugin, {
+    key: Buffer.from(config.MONGO_ENCRYPTION_KEY, "hex"),
   });
-  mongoConnection.plugin(encryptionPlugin, {
-    key: config.MONGO_ENCRYPTION_KEY,
-  });
-  const entities = {
-    User: User(mongoConnection),
-    CacheRecord: CacheRecord(mongoConnection),
-  };
+  const entities = Entities({ mongooseConnection });
 
   const appClient = new GitHubAppClient({ config, entities });
-  const webApp = new WebApp({ config, appClient, mongoConnection, entities });
+  const webApp = WebApp({ config, appClient, mongoConnection: mongooseConnection, entities });
 
   const classifier = Classifier.createFromRemote({
     config,
     modelUri: config.FASTTEXT_MODEL_URI,
   });
-  const webhookApp = new WebhookApp({
-    config,
-    classifier,
-    appClient,
-    entities,
-  });
+  const webhookApp = WebhookApp({ config, classifier, appClient });
 
   const app = express();
 
@@ -75,40 +71,40 @@ function App({ config }) {
 
   const server = http.createServer(app);
 
-  const connections = new Set();
+  const serverConnections = new Set<ServerConnection>();
   server.on("connection", (conn) => {
-    connections.add(conn);
+    serverConnections.add(conn);
     conn.on("close", () => {
-      connections.delete(conn);
+      serverConnections.delete(conn);
     });
   });
 
   return { start, stop, server, webhookApp };
 
   async function start() {
-    await mongoConnection.asPromise();
+    await mongooseConnection.asPromise();
 
     await classifier.initialize();
 
     await webhookApp.start();
 
-    await promisify((cb) => server.listen(config.PORT, "0.0.0.0", cb))();
+    await promisify((cb: () => void) => server.listen(config.PORT, "0.0.0.0", cb))();
 
     console.info(`ticket-tagger listening on port ${config.PORT}`);
   }
 
   async function stop() {
     if (server.listening) {
-      await promisify((cb) => server.close(cb))();
+      await promisify((cb: (err: Error | undefined) => void) => server.close(cb))();
       await promisify(setImmediate)();
       console.info("server stopped listening");
     }
 
-    connections.forEach((connection) => connection.end());
+    serverConnections.forEach((connection) => connection.end());
     await promisify(setImmediate)();
-    connections.forEach((connection) => connection.destroy());
+    serverConnections.forEach((connection) => connection.destroy());
     await promisify(setImmediate)();
-    connections.clear();
+    serverConnections.clear();
     console.info("connections closed");
 
     await webhookApp.stop();
@@ -116,5 +112,3 @@ function App({ config }) {
     await mongoose.disconnect();
   }
 }
-
-module.exports = { App };

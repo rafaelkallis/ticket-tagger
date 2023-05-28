@@ -22,12 +22,12 @@
 
 "use strict";
 
-const dotenv = require("dotenv");
-const envalid = require("envalid");
-const os = require("os");
-const fs = require("fs");
-const path = require("path");
-const crypto = require("crypto");
+import dotenv from "dotenv";
+import envalid from "envalid";
+import os from "os";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 
 /* parses .env file into process.env */
 dotenv.config();
@@ -39,18 +39,17 @@ const hexKey = envalid.makeValidator((input) => {
   if (!/^[0-9a-f]{64}$/i.test(input)) {
     throw new Error("key must be 64 hex digits long.");
   }
-  return Buffer.from(input, "hex");
+  return input;
 });
 
 const hexKeyList = envalid.makeValidator((input) => {
   if (typeof input !== "string") {
     throw new Error("Expected a string");
   }
-  const keys = input.split(",").map((key) => key.trim());
-  if (keys.some((key) => !/^[0-9a-f]{64}$/i.test(key))) {
-    throw new Error("keys must be 64 hex digits long (and comma separated).");
+  if (!/^([0-9a-f]{64},)*([0-9a-f]{64})$/i.test(input)) {
+    throw new Error("keys must be comma separated 64 hex digits.");
   }
-  return keys.map((key) => Buffer.from(key, "hex"));
+  return input;
 });
 
 const config = envalid.cleanEnv(process.env, {
@@ -106,4 +105,7 @@ const config = envalid.cleanEnv(process.env, {
 fs.mkdirSync(config.DATASET_DIR, { recursive: true });
 fs.mkdirSync(config.MODEL_DIR, { recursive: true });
 
-module.exports = config;
+
+type Config = typeof config;
+
+export { config, Config };

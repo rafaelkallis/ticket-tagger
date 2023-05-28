@@ -20,23 +20,64 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
+import { Connection } from "mongoose";
+import { Config } from "./Config";
+import { Entities } from "./entities";
+import path from "path";
+import { callbackify, promisify } from "util";
+import _ from "lodash";
+import express from "express";
+import  helmet from "helmet";
+import { RateLimiterMemory } from "rate-limiter-flexible";
+import session from "express-session";
+import MongoSessionStore from "connect-mongo";
+import { Passport } from "passport";
+import { Strategy as GitHubStrategy } from "passport-github";
+import nunjucks from "nunjucks";
+import nunjucksOcticonsExtension from "nunjucks-octicons-extension";
+import { GitHubAppClient, GitHubRepositoryClient, GitHubOAuthClient, repositoryConfigSchema } from "./Github";
+import { UserState } from "./entities/User";
 
-const path = require("path");
-const { callbackify } = require("util");
-const _ = require("lodash");
-const express = require("express");
-const helmet = require("helmet");
-const { RateLimiterMemory } = require("rate-limiter-flexible");
-const session = require("express-session");
-const MongoSessionStore = require("connect-mongo");
-const { Passport } = require("passport");
-const { Strategy: GitHubStrategy } = require("passport-github");
-const nunjucks = require("nunjucks");
-const nunjucksOcticonsExtension = require("nunjucks-octicons-extension");
-const { GitHubOAuthClient, repositoryConfigSchema } = require("./github");
+interface WebAppOptions {
+  config: Config;
+  appClient: GitHubAppClient;
+  mongoConnection: Connection;
+  entities: Entities;
+}
 
-function WebApp({ config, appClient, mongoConnection, entities }) {
+declare global {
+  namespace Express {
+    interface Request {
+      githubOAuthClient?: GitHubOAuthClient;
+      githubRepositoryClient?: GitHubRepositoryClient;
+      // session: express.Request["session"] & {
+      //   returnTo?: string;
+      // };
+    }
+    
+    interface User extends UserState {}
+
+    interface Locals {
+      user?: UserState;
+      installations?: Array<{ 
+        id: number;
+        account: {
+          login: string;
+        };
+        suspended_at: string | null;
+      }>;
+      repositories?: {}[];
+    }
+  }
+}
+
+declare module "express-session" {
+  interface SessionData {
+    returnTo?: string;
+  }
+}
+
+export function WebApp({ config, appClient, mongoConnection, entities }: WebAppOptions) {
   const passport = new Passport();
   passport.use(
     new GitHubStrategy(
@@ -48,21 +89,27 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
         userAgent: config.USER_AGENT,
       },
       callbackify(async function verify(
-        accessToken,
-        _refreshToken /* refresh token is conciously ignored */,
-        profile
+        accessToken: string,
+        _refreshToken: string /* refresh token is conciously ignored */,
+        profile: GitHubStrategy.Profile
       ) {
-        let user = await entities.User.findOne({ githubId: profile._json.id });
-        user = user || new entities.User({ githubId: profile._json.id });
+        const _json: any = profile._json; // TODO remove any
+        let user = await entities.User.findOne({ githubId: _json.id });
+        user = user || new entities.User({ githubId: _json.id });
         user.accessToken = accessToken;
         await user.save();
         return user;
       })
     )
   );
-  passport.serializeUser(callbackify((user) => Promise.resolve(user.id)));
+  passport.serializeUser(callbackify((user: unknown) => {
+    if (typeof user !== "object" || !user || !("id" in user)) {
+      throw new Error("expected user");
+    }
+    return Promise.resolve(user.id)
+  }));
   passport.deserializeUser(
-    callbackify(async function deserializeUser(req, id) {
+    callbackify(async function deserializeUser(req: express.Request, id: string) {
       const user = await entities.User.findById(id);
       if (!user) {
         return false;
@@ -136,7 +183,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
   app.use(
     session({
       name: config.SESSION_NAME,
-      secret: config.SESSION_KEYS.map((buf) => buf.toString("hex")),
+      secret: config.SESSION_KEYS.split(","),
       saveUninitialized: false,
       resave: false,
       cookie: {
@@ -146,11 +193,11 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
       },
       store: MongoSessionStore.create({
         clientPromise: new Promise((resolve) =>
-          mongoConnection.once("open", () => resolve(mongoConnection.client))
+          mongoConnection.once("open", () => resolve(mongoConnection.getClient()))
         ),
         /* https://github.com/jdesboeufs/connect-mongo#crypto-related-options */
         crypto: {
-          secret: config.SESSION_STORE_ENCRYPTION_KEY.toString("hex"),
+          secret: config.SESSION_STORE_ENCRYPTION_KEY,
         },
         autoRemove: "interval",
         autoRemoveInterval: 60,
@@ -174,26 +221,35 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
     next();
   });
 
-  app.use(async function prepareInstallations(req, res, next) {
+  app.use(async function prepareUser(req, res, next) {
     if (req.isAuthenticated()) {
-      Object.assign(res.locals, {
-        user: req.user,
-        installations: await req.githubOAuthClient.listInstallations(),
-      });
+      res.locals.user = req.user;
     }
     next();
   });
 
-  app.get("/", (req, res) => {
+  app.use(async function prepareInstallations(req, res, next) {
+    if (req.isAuthenticated()) {
+      if (!req.githubOAuthClient) {
+        throw new Error("expected githubOAuthClient");
+      }
+      res.locals.installations = await req.githubOAuthClient.listInstallations();
+    }
+    next();
+  });
+
+  app.get("/", function handleIndex(req, res) {
     if (!req.isAuthenticated()) {
       return res.render("index");
     }
+    if (!res.locals) throw new Error("expected res.locals");
     const { installations } = res.locals;
+    if (!installations) throw new Error("expected res.locals.installations");
     if (!installations.length) {
       return res.redirect("/install");
     }
     if (req.query.setup_action === "install") {
-      const installation = res.locals.installations.find(
+      const installation = installations.find(
         (i) => String(i.id) === req.query.installation_id
       );
       if (!installation) return res.redirect("/404");
@@ -213,6 +269,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
     "/auth/callback",
     passport.authenticate("github", { failureRedirect: "/access_denied" }),
     async function handleAuthCallback(req, res) {
+      if (!req.user) throw new Error("expected user");
       const githubOAuthClient = new GitHubOAuthClient({
         config,
         entities,
@@ -234,16 +291,19 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
     next();
   });
 
-  app.get("/install", (req, res) => res.render("install"));
+  app.get("/install", function handleInstall(req, res) {
+    res.render("install");
+  });
 
-  app.post("/logout", (req, res) => {
-    req.logout();
+  app.post("/logout", async function handleLogout(req, res) {
+    await promisify(req.logout.bind(req))();
     res.redirect("/");
   });
 
   app.param("owner", async function prepareOwner(req, res, next, owner) {
     if (!req.isAuthenticated()) throw new Error("expected authenticated user");
     const { installations } = res.locals;
+    if (!installations) throw new Error("expected res.locals.installations");
     if (!installations.length) {
       return res.redirect("/install");
     }
@@ -261,12 +321,14 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
 
   app.post("/:owner/unsuspend", async function handleUnsuspend(req, res) {
     const { owner, installation } = res.locals;
-    await appClient.unsuspendInstallation({ installation });
+    // TODO implement
+    // await appClient.unsuspendInstallation({ installation });
     res.redirect(`/${owner}`);
   });
 
-  app.param("repo", async function prepareRepo(req, res, next, repo) {
+  app.param("repo", async function prepareRepo(req, res, next, repo: string) {
     if (!req.isAuthenticated()) throw new Error("expected authenticated user");
+    if (!req.githubOAuthClient) throw new Error("expected githubOAuthClient");
     const { owner } = res.locals;
     const repository = await req.githubOAuthClient.getRepository({
       owner,
@@ -298,7 +360,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
     }
 
     if (form === "labels") {
-      for (const [key, value] of Object.entries(
+      for (const [key, value] of Object.entries<any>( // TODO remove any
         updatedRepositoryConfig.labels || []
       )) {
         updatedRepositoryConfig.labels[key] = {
@@ -312,15 +374,15 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
       return res.status(400).render("repo", { errors: { validation: true } });
     }
     /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
-    const installationClient = await appClient.createInstallationClient(
-      res.locals
-    );
+    const installationClient = await appClient.createInstallationClient({
+      installation: res.locals.installation,
+    });
     if (!installationClient.canWrite("single_file")) {
       return res.status(403).render("repo", { errors: { permissions: true } });
     }
-    const repositoryClient = installationClient.createRepositoryClient(
-      res.locals
-    );
+    const repositoryClient = installationClient.createRepositoryClient({
+      repository: res.locals.repository,
+    });
     /* create config if it does not exist */
     if (!res.locals.config.exists) {
       res.locals.config = await repositoryClient.createConfig();
@@ -338,6 +400,7 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
   });
 
   app.get("/:owner", async function handleListRepositories(req, res) {
+    if (!req.githubOAuthClient) throw new Error("expected githubOAuthClient");
     res.locals.repositories =
       await req.githubOAuthClient.listRepositoriesByInstallationId({
         installationId: res.locals.installation.id,
@@ -351,5 +414,3 @@ function WebApp({ config, appClient, mongoConnection, entities }) {
 
   return app;
 }
-
-module.exports = { WebApp };

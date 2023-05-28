@@ -9,7 +9,8 @@
     "node": "^16.x|| ^18.x"
   },
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node build/index.js",
+    "build": "tsc",
     "test": "jest",
     "lint": "eslint --format codeframe src/*.js src/**/*.js",
     "lint:fix": "eslint --fix --format codeframe src/*.js src/**/*.js"
@@ -41,6 +42,14 @@
     "yaml": "2.3.1"
   },
   "devDependencies": {
+    "@tsconfig/node16": "^1.0.4",
+    "@types/express": "^4.17.17",
+    "@types/express-session": "^1.17.7",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/lodash": "^4.14.195",
+    "@types/node-fetch": "^2.6.4",
+    "@types/nunjucks": "^3.2.2",
+    "@types/passport-github": "^1.1.7",
     "eslint": "8.41.0",
     "eslint-config-prettier": "8.8.0",
     "eslint-plugin-jest": "27.2.1",
@@ -51,7 +60,8 @@
     "nock": "13.3.1",
     "nodemon": "^2.0.22",
     "prettier": "2.8.8",
-    "supertest": "6.3.3"
+    "supertest": "6.3.3",
+    "typescript": "^5.0.4"
   },
   "jest": {
     "testEnvironment": "node"

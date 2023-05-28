@@ -16,22 +16,32 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file user
+ * @file index
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
 "use strict";
 
-const { Schema } = require("mongoose");
+import appInsights from "applicationinsights";
+import { config } from "./Config";
+import telemetry from "./telemetry";
 
-const userSchema = new Schema({
-  githubId: { type: Number, required: true, unique: true },
-  accessToken: { type: String, required: true, encrypted: true },
-  _ts: { type: Date, expires: 8 * 60 * 60 }, // cosmos db ttl
-});
-
-function User(connection) {
-  return connection.model("User", userSchema);
+if (config.isDevelopment) {
+  telemetry.attachConsole();
 }
 
-module.exports = { User };
+if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
+  appInsights
+    .setup(config.APPINSIGHTS_INSTRUMENTATIONKEY)
+    .setSendLiveMetrics(true)
+    .start();
+  telemetry.attachAppInsights();
+}
+
+const { App } = require("./App");
+
+const app = new App({ config });
+
+process.once("beforeExit", () => app.stop());
+
+app.start();

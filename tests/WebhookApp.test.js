@@ -26,8 +26,8 @@ jest.setTimeout(5 * 60 * 1000);
 
 const nock = require("nock");
 const request = require("supertest");
-const config = require("./config");
-const { App } = require("./App");
+const config = require("../src/config");
+const { App } = require("../src/App");
 
 const requestDelayMilliseconds = 100;
 
