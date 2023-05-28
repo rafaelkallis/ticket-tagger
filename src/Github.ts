@@ -20,18 +20,38 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
 
-const crypto = require("crypto");
-const _ = require("lodash");
-const jwt = require("jsonwebtoken");
-const fetch = require("node-fetch");
-const YAML = require("yaml");
-const { detailedDiff } = require("deep-object-diff");
-const Joi = require("joi");
-const { cloneDeep, defaultsDeep } = require("lodash");
+import crypto from "crypto";
+import _ from "lodash";
+import jwt from "jsonwebtoken";
+import fetch, { Headers, RequestInit, Response } from "node-fetch";
+import YAML from "yaml";
+import { detailedDiff } from "deep-object-diff";
+import Joi from "joi";
+import { Config } from "./Config";
+import { Entities } from "./entities";
 
-const repositoryConfigSchema = Joi.object({
+export interface RepositoryConfig {
+  version: number;
+  enabled: boolean;
+  labels: {
+    [key: string]: {
+      enabled: boolean;
+      text: string;
+    };
+  };
+}
+
+interface Installation {
+  id: number;
+}
+
+interface Repository {
+  id: number;
+  url: string;
+}
+
+export const repositoryConfigSchema = Joi.object<RepositoryConfig>({
   version: Joi.number().allow(3),
   enabled: Joi.boolean(),
   labels: Joi.object().pattern(
@@ -43,7 +63,7 @@ const repositoryConfigSchema = Joi.object({
   ),
 });
 
-const repositoryConfigDefaults = {
+export const repositoryConfigDefaults: RepositoryConfig = {
   version: 3,
   enabled: true,
   labels: Object.fromEntries(
@@ -58,8 +78,14 @@ const repositoryConfigDefaults = {
 };
 Joi.assert(repositoryConfigDefaults, repositoryConfigSchema);
 
-class CacheKeyComputer {
-  computeCacheKey({ url, options }) {
+interface ComputeCacheKeyOptions {
+  url: string;
+  options: RequestInit;
+}
+
+export class CacheKeyComputer {
+  
+  public computeCacheKey({ url, options }: ComputeCacheKeyOptions) {
     const hash = crypto.createHash("md5");
     for (const c of this._getCacheKeyComponents({ url, options })) {
       hash.update(c);
@@ -67,32 +93,60 @@ class CacheKeyComputer {
     return hash.digest("hex");
   }
 
-  *_getCacheKeyComponents({ url }) {
+  protected *_getCacheKeyComponents({ url }: ComputeCacheKeyOptions): Generator<string> {
     yield "github";
     yield url;
   }
 }
 
 class AuthorizationCacheKeyComputer extends CacheKeyComputer {
-  *_getCacheKeyComponents({ url, options }) {
+  
+  protected *_getCacheKeyComponents({ url, options }: ComputeCacheKeyOptions): Generator<string> {
     yield* super._getCacheKeyComponents({ url, options });
-    yield options.headers.Authorization;
+    if (!options.headers) throw new Error("headers is null");
+    let authorizationValue: string | null = null;
+    if (Array.isArray(options.headers)) {
+      const authorizationHeader = options.headers.find(h => h[0].toLocaleLowerCase() === "authorization");
+      if (authorizationHeader) {
+        const [, ...authorizationValues] = authorizationHeader;
+        authorizationValue = authorizationValues.join("|");
+      }
+    }
+    else if (options.headers instanceof Headers) {
+      authorizationValue = options.headers.get("Authorization");
+    } else {
+      authorizationValue = options.headers.Authorization ?? options.headers.authorization;
+    }
+    if (!authorizationValue) throw new Error("no authorization header found");
+    yield authorizationValue;
   }
 }
 
-class GitHubClient {
-  constructor({ config, cacheKeyComputer, entities }) {
+interface GitHubClientOptions {
+  config: Config;
+  cacheKeyComputer: CacheKeyComputer;
+  entities: Entities;
+}
+
+abstract class GitHubClient {
+
+  protected readonly config: Config;
+  protected readonly cacheKeyComputer: CacheKeyComputer;
+  protected readonly entities: Entities;
+  protected readonly baseUrl: string;
+
+  constructor({ config, cacheKeyComputer, entities }: GitHubClientOptions) {
     this.config = config;
     this.cacheKeyComputer = cacheKeyComputer;
     this.entities = entities;
     this.baseUrl = "https://api.github.com";
   }
 
-  _url(path) {
+  protected _url(path: string) {
     return this.baseUrl + path;
   }
 
-  _headers(headers = {}) {
+  protected _headers(headers = {}) {
     return {
       "User-Agent": this.config.USER_AGENT,
       Accept: "application/vnd.github.v3+json",
@@ -100,7 +154,7 @@ class GitHubClient {
     };
   }
 
-  _assertSuccess(response) {
+  protected _assertSuccess(response: Response) {
     if (!response.ok && response.status !== 304) {
       throw new Error(
         `github api request failed for "${response.url}", got "${response.status}: ${response.statusText}".`
@@ -112,17 +166,21 @@ class GitHubClient {
    * Uses conditional requests for improved rate limits.
    * @see https://docs.github.com/en/rest/guides/getting-started-with-the-rest-api#conditional-requests
    */
-  async _fetch(url, options) {
+  protected async _fetch(url: string, options: RequestInit) {
     const cacheKey = this.cacheKeyComputer.computeCacheKey({ url, options });
     let cacheRecord = await this.entities.CacheRecord.findOne({
       key: cacheKey,
     });
     if (cacheRecord) {
-      options.headers["If-None-Match"] = cacheRecord.etag;
+      options.headers ??= {};
+      options.headers = { ...options.headers, ["If-None-Match"]: cacheRecord.etag };
     }
     const response = await fetch(url, options);
     /* cache hit */
-    if (response.status === 304) return cacheRecord.payload;
+    if (response.status === 304) {
+      if (!cacheRecord) throw new Error("cache record is null");
+      return cacheRecord.payload;
+    }
 
     /* bad */
     if (!response.ok) return null;
@@ -130,6 +188,7 @@ class GitHubClient {
     /* cache miss */
     const etag = response.headers.get("ETag");
     const payload = await response.json();
+    if (!etag) return payload;
     if (!cacheRecord) {
       cacheRecord = new this.entities.CacheRecord({ key: cacheKey });
     }
@@ -140,8 +199,16 @@ class GitHubClient {
   }
 }
 
-class GitHubOAuthClient extends GitHubClient {
-  constructor({ config, entities, accessToken }) {
+interface GitHubOAuthClientOptions {
+  config: Config;
+  entities: Entities;
+  accessToken: string;
+}
+
+export class GitHubOAuthClient extends GitHubClient {
+  readonly accessToken: string;
+
+  constructor({ config, entities, accessToken }: GitHubOAuthClientOptions) {
     super({
       config,
       cacheKeyComputer: new AuthorizationCacheKeyComputer(),
@@ -181,7 +248,7 @@ class GitHubOAuthClient extends GitHubClient {
   /**
    * @see https://docs.github.com/en/rest/reference/repos#get-a-repository
    */
-  async getRepository({ owner, repo }) {
+  async getRepository({ owner, repo }: { owner: string; repo: string }) {
     const url = this._url(`/repos/${owner}/${repo}`);
     return await this._fetch(url, { headers: this._headers() });
   }
@@ -200,7 +267,7 @@ class GitHubOAuthClient extends GitHubClient {
   /**
    * @see https://docs.github.com/en/rest/reference/apps#list-repositories-accessible-to-the-user-access-token
    */
-  async listRepositoriesByInstallationId({ installationId }) {
+  async listRepositoriesByInstallationId({ installationId }: { installationId: number }) {
     const url = this._url(`/user/installations/${installationId}/repositories`);
     const { repositories } = await this._fetch(url, {
       headers: this._headers(),
@@ -208,18 +275,24 @@ class GitHubOAuthClient extends GitHubClient {
     return repositories;
   }
 
-  createRepositoryClient({ repository }) {
-    return new GitHubRepositoryClient({ ...this, repository });
+  createRepositoryClient({ repository }: { repository: Repository }) {
+    return new GitHubRepositoryClient({ 
+      config: this.config,
+      cacheKeyComputer: this.cacheKeyComputer,
+      entities: this.entities,
+      accessToken: this.accessToken,
+      repository,
+    });
   }
 
-  _headers(headers = {}) {
+  protected _headers(headers = {}) {
     return super._headers({
       Authorization: `token ${this.accessToken}`,
       ...headers,
     });
   }
 
-  _headersWithClientSecretBasicAuth(headers = {}) {
+  protected _headersWithClientSecretBasicAuth(headers = {}) {
     const basicAuthToken = Buffer.from(
       `${this.config.GITHUB_CLIENT_ID}:${this.config.GITHUB_CLIENT_SECRET}`
     ).toString("base64");
@@ -230,11 +303,16 @@ class GitHubOAuthClient extends GitHubClient {
   }
 }
 
+interface GitHubAppClientOptions {
+  config: Config;
+  entities: Entities;
+}
+
 /**
  * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-a-github-app
  */
-class GitHubAppClient extends GitHubClient {
-  constructor({ config, entities }) {
+export class GitHubAppClient extends GitHubClient {
+  constructor({ config, entities }: GitHubAppClientOptions) {
     super({ config, cacheKeyComputer: new CacheKeyComputer(), entities });
   }
 
@@ -262,13 +340,13 @@ class GitHubAppClient extends GitHubClient {
     return await response.json();
   }
 
-  async createInstallationClient({ installation }) {
-    const { accessToken, permissions } =
-      await this._createInstallationAccessToken({
-        installation,
-      });
+  async createInstallationClient({ installation }: { installation: Installation }) {
+    const { accessToken, permissions } = 
+      await this._createInstallationAccessToken({ installation });
     return new GitHubInstallationClient({
-      ...this,
+      config: this.config,
+      cacheKeyComputer: this.cacheKeyComputer,
+      entities: this.entities,
       accessToken,
       installation,
       permissions,
@@ -279,7 +357,7 @@ class GitHubAppClient extends GitHubClient {
    * Create an installation access token for a repository.
    * @see https://docs.github.com/en/rest/reference/apps#create-an-installation-access-token-for-an-app
    */
-  async _createInstallationAccessToken({ installation }) {
+  async _createInstallationAccessToken({ installation }: { installation: Installation }) {
     const url = this._url(
       `/app/installations/${installation.id}/access_tokens`
     );
@@ -316,10 +394,20 @@ class GitHubAppClient extends GitHubClient {
   }
 }
 
+interface GitHubInstallationClientOptions extends GitHubClientOptions {
+  accessToken: string;
+  installation: Installation;
+  permissions: { [key: string]: string };
+}
+
 /**
  * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-an-installation
  */
 class GitHubInstallationClient extends GitHubClient {
+  readonly accessToken: string;
+  readonly installation: Installation;
+  readonly permissions: { [key: string]: string };
+
   constructor({
     config,
     cacheKeyComputer,
@@ -327,18 +415,18 @@ class GitHubInstallationClient extends GitHubClient {
     accessToken,
     installation,
     permissions,
-  }) {
+  }: GitHubInstallationClientOptions) {
     super({ config, cacheKeyComputer, entities });
     this.accessToken = accessToken;
     this.installation = installation;
     this.permissions = permissions;
   }
 
-  canRead(permission) {
+  canRead(permission: string) {
     return ["read", "write"].includes(this.permissions[permission]);
   }
 
-  canWrite(permission) {
+  canWrite(permission: string) {
     return ["write"].includes(this.permissions[permission]);
   }
 
@@ -351,8 +439,14 @@ class GitHubInstallationClient extends GitHubClient {
     this._assertSuccess(response);
   }
 
-  createRepositoryClient({ repository }) {
-    return new GitHubRepositoryClient({ ...this, repository });
+  createRepositoryClient({ repository }: { repository: Repository }) {
+    return new GitHubRepositoryClient({ 
+      config: this.config,
+      cacheKeyComputer: this.cacheKeyComputer,
+      entities: this.entities,
+      accessToken: this.accessToken,
+      repository,
+    });
   }
 
   _headers(headers = {}) {
@@ -363,8 +457,17 @@ class GitHubInstallationClient extends GitHubClient {
   }
 }
 
-class GitHubRepositoryClient extends GitHubClient {
-  constructor({ config, cacheKeyComputer, entities, accessToken, repository }) {
+interface GitHubRepositoryClientOptions extends GitHubClientOptions {
+  accessToken: string;
+  repository: Repository;
+}
+
+export class GitHubRepositoryClient extends GitHubClient {
+
+  private readonly accessToken: string;
+  private readonly repository: Repository;
+
+  constructor({ config, cacheKeyComputer, entities, accessToken, repository }: GitHubRepositoryClientOptions) {
     super({ config, cacheKeyComputer, entities });
     this.accessToken = accessToken;
     this.repository = repository;
@@ -374,7 +477,7 @@ class GitHubRepositoryClient extends GitHubClient {
    * Set the issue's labels.
    * @see https://docs.github.com/en/rest/reference/issues#update-an-issue
    */
-  async setIssueLabels({ issue, labels }) {
+  async setIssueLabels({ issue, labels }: { issue: number; labels: string[] }) {
     const url = this._url(`/issues/${issue}/labels`);
     const response = await fetch(url, {
       method: "PUT",
@@ -397,7 +500,7 @@ class GitHubRepositoryClient extends GitHubClient {
     if (!body) {
       return {
         yaml: "",
-        json: cloneDeep(repositoryConfigDefaults),
+        json: _.cloneDeep(repositoryConfigDefaults),
         sha: "",
         exists: false,
       };
@@ -413,7 +516,7 @@ class GitHubRepositoryClient extends GitHubClient {
     if (repositoryConfigSchema.validate(json).error) {
       json = {};
     }
-    json = defaultsDeep(json, repositoryConfigDefaults);
+    json = _.defaultsDeep(json, repositoryConfigDefaults);
     return { yaml, json, sha: body.sha, exists: true };
   }
 
@@ -422,7 +525,7 @@ class GitHubRepositoryClient extends GitHubClient {
    * @see https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents
    */
   async createConfig() {
-    const json = cloneDeep(repositoryConfigDefaults);
+    const json = _.cloneDeep(repositoryConfigDefaults);
     const yaml = YAML.stringify(json);
 
     const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
@@ -449,12 +552,17 @@ class GitHubRepositoryClient extends GitHubClient {
     repositoryConfigYaml,
     sha,
     updatedRepositoryConfig,
+  }: {
+    repositoryConfig: RepositoryConfig;
+    repositoryConfigYaml: string;
+    sha: string;
+    updatedRepositoryConfig: RepositoryConfig;
   }) {
     if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
       throw new Error("schema validation error");
     }
-    updatedRepositoryConfig = defaultsDeep(
-      cloneDeep(updatedRepositoryConfig),
+    updatedRepositoryConfig = _.defaultsDeep(
+      _.cloneDeep(updatedRepositoryConfig),
       repositoryConfigDefaults
     );
 
@@ -477,7 +585,7 @@ class GitHubRepositoryClient extends GitHubClient {
     const yamlDoc = YAML.parseDocument(repositoryConfigYaml);
 
     traverse(added).forEach(([path, value]) => yamlDoc.setIn(path, value));
-    traverse(deleted).forEach(([path, value]) => yamlDoc.deleteIn(path, value));
+    traverse(deleted).forEach(([path]) => yamlDoc.deleteIn(path));
     traverse(updated).forEach(([path, value]) => yamlDoc.setIn(path, value));
 
     const updatedYaml = yamlDoc.toString();
@@ -502,21 +610,21 @@ class GitHubRepositoryClient extends GitHubClient {
       exists: true,
     };
 
-    function traverse(value) {
+    function traverse(value: unknown): [string[], unknown][] {
       return Array.from(traverseInner([], value));
-      function* traverseInner(path, value) {
-        if (typeof value !== "object") {
+      function* traverseInner(path: string[], value: unknown): Generator<[string[], unknown]> {
+        if (typeof value !== "object" || value === null) {
           yield [path, value];
           return;
         }
-        for (let [childKey, childValue] of Object.entries(value)) {
+        for (let [childKey, childValue] of Object.entries(value) as [string, unknown][]) {
           yield* traverseInner([...path, childKey], childValue);
         }
       }
     }
   }
 
-  _url(url) {
+  _url(url: string) {
     return this.repository.url + url;
   }
 
@@ -527,10 +635,3 @@ class GitHubRepositoryClient extends GitHubClient {
     });
   }
 }
-
-module.exports = {
-  repositoryConfigSchema,
-  repositoryConfigDefaults,
-  GitHubOAuthClient,
-  GitHubAppClient,
-};

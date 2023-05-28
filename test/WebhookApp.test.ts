@@ -20,32 +20,30 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
-
 jest.setTimeout(5 * 60 * 1000);
 
-const nock = require("nock");
-const request = require("supertest");
-const config = require("./config");
-const { App } = require("./App");
+import nock from "nock";
+import request from "supertest";
+import { config } from "../src/Config";
+import { App } from "../src/App";
 
 const requestDelayMilliseconds = 100;
 
 describe("app integration test", () => {
-  let app;
-  let installationAccessToken;
-  let createInstallationAccessTokenScope;
-  let createInstallationAccessTokenResult;
-  let getRepositoryConfigScope;
-  let getRepositoryConfigResult;
-  let setLabelsScope;
-  let setLabelsResult;
-  let revokeAccessTokenScope;
-  let revokeAccessTokenResult;
-  let signatureSha256;
+  let app: ReturnType<typeof App>;
+  let installationAccessToken: string;
+  let createInstallationAccessTokenScope: nock.Scope;
+  let createInstallationAccessTokenResult: any; // TODO remove any
+  let getRepositoryConfigScope: nock.Scope;
+  let getRepositoryConfigResult: nock.ReplyFnResult;
+  let setLabelsScope: nock.Scope;
+  let setLabelsResult: nock.ReplyFnResult;
+  let revokeAccessTokenScope: nock.Scope;
+  let revokeAccessTokenResult: nock.ReplyFnResult;
+  let signatureSha256: string;
 
   beforeAll(async () => {
-    app = new App({ config });
+    app = App({ config });
 
     const getMetaResult = [
       200,

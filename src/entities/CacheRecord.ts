@@ -16,38 +16,24 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
- * @file telemetry
+ * @file cache record
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
+import { Model, Schema } from "mongoose";
 
-const EventEmitter = require("events");
-const appInsights = require("applicationinsights");
-
-class Telemetry {
-  constructor() {
-    this.emitter = new EventEmitter();
-  }
-
-  event(name) {
-    this.emitter.emit("event", name);
-  }
-
-  onEvent(handler) {
-    this.emitter.on("event", handler);
-  }
-
-  attachConsole() {
-    this.onEvent((name) => console.info(`Event emitted: ${name}`));
-  }
-
-  attachAppInsights() {
-    if (!appInsights.defaultClient) {
-      return;
-    }
-    this.onEvent((name) => appInsights.defaultClient.trackEvent({ name }));
-  }
+interface CacheRecordState {
+  key: string;
+  etag: string;
+  payload: unknown;
+  _ts: Date;
 }
 
-module.exports = new Telemetry();
+export type CacheRecordModel = Model<CacheRecordState>;
+
+export const cacheRecordSchema = new Schema<CacheRecordState, CacheRecordModel>({
+  key: { type: String, required: true, index: true },
+  etag: { type: String, required: true },
+  payload: { type: Object, required: true, encrypted: true },
+  _ts: { type: Date, expires: 60 * 60 }, // cosmos db ttl
+});
