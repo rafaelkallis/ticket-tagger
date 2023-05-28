@@ -9,6 +9,7 @@
     "node": "^16.x|| ^18.x"
   },
   "scripts": {
+    "postinstall": "npm run-script build",
     "start": "node build/index.js",
     "build": "tsc",
     "test": "jest",
