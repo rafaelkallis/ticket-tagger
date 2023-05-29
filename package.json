@@ -4,12 +4,11 @@
   "description": "Machine learning driven issue classification bot.",
   "license": "AGPL-3.0",
   "repository": "github:rafaelkallis/ticket-tagger",
-  "main": "src/index.js",
+  "main": "build/index.js",
   "engines": {
     "node": "^16.x|| ^18.x"
   },
   "scripts": {
-    "postinstall": "npm run-script build",
     "start": "node build/index.js",
     "build": "tsc",
     "test": "jest",
