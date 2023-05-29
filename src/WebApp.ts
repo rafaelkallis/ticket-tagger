@@ -187,7 +187,7 @@ export function WebApp({ config, appClient, mongoConnection, entities }: WebAppO
       saveUninitialized: false,
       resave: false,
       cookie: {
-        secure: config.isProduction,
+        secure: config.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: 8 * 60 * 60 * 1000,
       },

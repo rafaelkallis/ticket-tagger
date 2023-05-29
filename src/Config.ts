@@ -20,8 +20,6 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
-
 import dotenv from "dotenv";
 import envalid from "envalid";
 import os from "os";
@@ -52,7 +50,31 @@ const hexKeyList = envalid.makeValidator((input) => {
   return input;
 });
 
-export const config = envalid.cleanEnv(process.env, {
+export interface Config {
+  NODE_ENV: "production" | "test" | "development";
+  SERVER_BASE_URL: string;
+  PORT: number;
+  USER_AGENT: string;
+  GITHUB_SECRET: string;
+  GITHUB_CERT: string;
+  GITHUB_APP_ID: string;
+  FASTTEXT_MODEL_URI: string;
+  APPLICATIONINSIGHTS_CONNECTION_STRING: string;
+  SESSION_NAME: string;
+  SESSION_KEYS: string;
+  SESSION_STORE_ENCRYPTION_KEY: string;
+  MONGO_URI: string;
+  MONGO_ENCRYPTION_KEY: string;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  DATASET_DIR: string;
+  MODEL_DIR: string;
+  CONFIG_FILE_PATH: string;
+  RATELIMIT_WINDOW_POINTS: number;
+  RATELIMIT_WINDOW_SECONDS: number;
+}
+
+export const config: Config = envalid.cleanEnv(process.env, {
   NODE_ENV: envalid.str({ choices: ["production", "test", "development"] }),
   SERVER_BASE_URL: envalid.url({ devDefault: "http://localhost:3000" }),
   PORT: envalid.port({ devDefault: 3000 }),
@@ -74,7 +96,7 @@ export const config = envalid.cleanEnv(process.env, {
   FASTTEXT_MODEL_URI: envalid.str({
     default: "https://tickettagger.blob.core.windows.net/models/model.bin",
   }),
-  APPINSIGHTS_INSTRUMENTATIONKEY: envalid.str({ devDefault: "" }),
+  APPLICATIONINSIGHTS_CONNECTION_STRING: envalid.str({ devDefault: "" }),
   SESSION_NAME: envalid.str({ default: "tickettagger.session" }),
   SESSION_KEYS: hexKeyList({
     devDefault:
@@ -104,6 +126,3 @@ export const config = envalid.cleanEnv(process.env, {
 
 fs.mkdirSync(config.DATASET_DIR, { recursive: true });
 fs.mkdirSync(config.MODEL_DIR, { recursive: true });
-
-
-export type Config = typeof config;
