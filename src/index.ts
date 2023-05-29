@@ -20,7 +20,7 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-import appInsights from "applicationinsights";
+const appInsights = require('applicationinsights');
 import { config } from "./Config";
 import telemetry from "./telemetry";
 
