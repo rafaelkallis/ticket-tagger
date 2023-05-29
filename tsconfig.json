@@ -1,8 +1,7 @@
 {
 	"extends": "@tsconfig/node16/tsconfig.json",
   "compilerOptions": {
-    "outDir": "./build",
-    "allowJs": true,
+    "outDir": "./build"
   },
-  "include": ["./src/**/*", "./test/**/*"]
+  "include": ["./src/**/*"]
 }
