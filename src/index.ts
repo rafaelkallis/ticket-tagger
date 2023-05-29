@@ -20,27 +20,25 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
-"use strict";
-
-import appInsights from "applicationinsights";
+const appInsights = require('applicationinsights');
 import { config } from "./Config";
 import telemetry from "./telemetry";
 
-if (config.isDevelopment) {
+if (config.NODE_ENV !== "production") {
   telemetry.attachConsole();
 }
 
-if (config.APPINSIGHTS_INSTRUMENTATIONKEY) {
+if (config.APPLICATIONINSIGHTS_CONNECTION_STRING !== "") {
   appInsights
-    .setup(config.APPINSIGHTS_INSTRUMENTATIONKEY)
+    .setup(config.APPLICATIONINSIGHTS_CONNECTION_STRING)
     .setSendLiveMetrics(true)
     .start();
   telemetry.attachAppInsights();
 }
 
-const { App } = require("./App");
+import { App } from "./App";
 
-const app = new App({ config });
+const app = App({ config });
 
 process.once("beforeExit", () => app.stop());
 

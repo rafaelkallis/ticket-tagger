@@ -102,7 +102,7 @@ export function WebhookApp({ config, classifier, appClient }: WebhookAppOptions)
     ipWhitelist.addRanges(meta.hooks);
 
     /* add localhost to whitelist during development */
-    if (!config.isProduction) {
+    if (config.NODE_ENV !== "production") {
       ipWhitelist.addRange("127.0.0.0/8");
     }
   }
