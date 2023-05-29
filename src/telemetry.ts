@@ -20,8 +20,8 @@
  * @author Rafael Kallis <rk@rafaelkallis.com>
  */
 
+const appInsights = require("applicationinsights");
 import { EventEmitter } from "events";
-import appInsights from "applicationinsights";
 
 class Telemetry {
 
