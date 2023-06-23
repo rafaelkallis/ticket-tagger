@@ -42,10 +42,6 @@ export interface RepositoryConfig {
   };
 }
 
-interface Installation {
-  id: number;
-}
-
 interface Repository {
   id: number;
   url: string;
@@ -166,7 +162,7 @@ abstract class GitHubClient {
    * Uses conditional requests for improved rate limits.
    * @see https://docs.github.com/en/rest/guides/getting-started-with-the-rest-api#conditional-requests
    */
-  protected async _fetch(url: string, options: RequestInit) {
+  protected async _fetch<T = unknown>(url: string, options: RequestInit): Promise<T> {
     const cacheKey = this.cacheKeyComputer.computeCacheKey({ url, options });
     let cacheRecord = await this.entities.CacheRecord.findOne({
       key: cacheKey,
@@ -179,11 +175,11 @@ abstract class GitHubClient {
     /* cache hit */
     if (response.status === 304) {
       if (!cacheRecord) throw new Error("cache record is null");
-      return cacheRecord.payload;
+      return cacheRecord.payload as T;
     }
 
     /* bad */
-    if (!response.ok) return null;
+    if (!response.ok) throw new Error(`github api request failed for "${response.url}", got "${response.status}: ${response.statusText}".`);
 
     /* cache miss */
     const etag = response.headers.get("ETag");
@@ -205,6 +201,35 @@ interface GitHubOAuthClientOptions {
   accessToken: string;
 }
 
+type CheckTokenResponse = {
+  user: {
+    id: number;
+  }
+} | null;
+
+interface GetUserResponse {
+  id: number;
+}
+
+interface GetRepositoryResponse {
+  id: number;
+  url: string;
+}
+
+interface ListInstallationsResponse {
+  installations: Array<{
+    id: number;
+    account: {
+      login: string;
+    };
+    suspended_at: string | null;
+  }>;
+}
+
+interface ListRepositoriesResponse {
+  repositories: Array<{}>;
+}
+
 export class GitHubOAuthClient extends GitHubClient {
   readonly accessToken: string;
 
@@ -220,7 +245,7 @@ export class GitHubOAuthClient extends GitHubClient {
   /**
    * @see https://docs.github.com/en/rest/reference/apps#check-a-token
    */
-  async checkToken() {
+  async checkToken(): Promise<CheckTokenResponse> {
     const url = this._url(
       `/applications/${this.config.GITHUB_CLIENT_ID}/token`
     );
@@ -232,7 +257,7 @@ export class GitHubOAuthClient extends GitHubClient {
       body: JSON.stringify({ access_token: this.accessToken }),
     });
     if (!response.ok) {
-      return false;
+      return null;
     }
     return await response.json();
   }
@@ -240,7 +265,7 @@ export class GitHubOAuthClient extends GitHubClient {
   /**
    * @see https://docs.github.com/en/rest/reference/users#get-the-authenticated-user
    */
-  async getUser() {
+  async getUser(): Promise<GetUserResponse> {
     const url = this._url("/user");
     return await this._fetch(url, { headers: this._headers() });
   }
@@ -248,7 +273,7 @@ export class GitHubOAuthClient extends GitHubClient {
   /**
    * @see https://docs.github.com/en/rest/reference/repos#get-a-repository
    */
-  async getRepository({ owner, repo }: { owner: string; repo: string }) {
+  async getRepository({ owner, repo }: { owner: string; repo: string }) : Promise<GetRepositoryResponse> {
     const url = this._url(`/repos/${owner}/${repo}`);
     return await this._fetch(url, { headers: this._headers() });
   }
@@ -256,32 +281,27 @@ export class GitHubOAuthClient extends GitHubClient {
   /**
    * @see https://docs.github.com/en/rest/reference/apps#list-app-installations-accessible-to-the-user-access-token
    */
-  async listInstallations() {
+  async listInstallations(): Promise<ListInstallationsResponse> {
     const url = this._url("/user/installations");
-    const { installations } = await this._fetch(url, {
-      headers: this._headers(),
-    });
-    return installations;
+    return await this._fetch(url, { headers: this._headers() });
+
   }
 
   /**
    * @see https://docs.github.com/en/rest/reference/apps#list-repositories-accessible-to-the-user-access-token
    */
-  async listRepositoriesByInstallationId({ installationId }: { installationId: number }) {
+  async listRepositoriesByInstallationId({ installationId }: { installationId: number }): Promise<ListRepositoriesResponse> {
     const url = this._url(`/user/installations/${installationId}/repositories`);
-    const { repositories } = await this._fetch(url, {
-      headers: this._headers(),
-    });
-    return repositories;
+    return await this._fetch(url, { headers: this._headers() });
   }
 
-  createRepositoryClient({ repository }: { repository: Repository }) {
+  createRepositoryClient({ repositoryUrl }: { repositoryUrl: string }) {
     return new GitHubRepositoryClient({ 
       config: this.config,
       cacheKeyComputer: this.cacheKeyComputer,
       entities: this.entities,
       accessToken: this.accessToken,
-      repository,
+      repositoryUrl,
     });
   }
 
@@ -308,6 +328,10 @@ interface GitHubAppClientOptions {
   entities: Entities;
 }
 
+interface GetMetaResponse {
+  hooks: string[];
+}
+
 /**
  * @see https://docs.github.com/en/developers/apps/authenticating-with-github-apps#authenticating-as-a-github-app
  */
@@ -320,7 +344,7 @@ export class GitHubAppClient extends GitHubClient {
    * Get the authenticated app.
    * @see https://docs.github.com/en/rest/reference/apps#get-the-authenticated-app
    */
-  async getApp() {
+  async getApp(): Promise<unknown> {
     const url = this._url("/app");
     return await this._fetch(url, {
       headers: this._headers(),
@@ -331,7 +355,7 @@ export class GitHubAppClient extends GitHubClient {
    * Get meta.
    * @see https://docs.github.com/en/rest/reference/meta
    */
-  async getMeta() {
+  async getMeta(): Promise<GetMetaResponse> {
     const url = this._url("/meta");
     const response = await fetch(url, {
       headers: _.omit(this._headers(), ["Authorization"]),
@@ -340,15 +364,15 @@ export class GitHubAppClient extends GitHubClient {
     return await response.json();
   }
 
-  async createInstallationClient({ installation }: { installation: Installation }) {
+  async createInstallationClient({ installationId }: { installationId: number }) {
     const { accessToken, permissions } = 
-      await this._createInstallationAccessToken({ installation });
+      await this._createInstallationAccessToken({ installationId });
     return new GitHubInstallationClient({
       config: this.config,
       cacheKeyComputer: this.cacheKeyComputer,
       entities: this.entities,
       accessToken,
-      installation,
+      installationId,
       permissions,
     });
   }
@@ -357,9 +381,9 @@ export class GitHubAppClient extends GitHubClient {
    * Create an installation access token for a repository.
    * @see https://docs.github.com/en/rest/reference/apps#create-an-installation-access-token-for-an-app
    */
-  async _createInstallationAccessToken({ installation }: { installation: Installation }) {
+  async _createInstallationAccessToken({ installationId }: { installationId: number }) {
     const url = this._url(
-      `/app/installations/${installation.id}/access_tokens`
+      `/app/installations/${installationId}/access_tokens`
     );
     const response = await fetch(url, {
       method: "POST",
@@ -396,7 +420,7 @@ export class GitHubAppClient extends GitHubClient {
 
 interface GitHubInstallationClientOptions extends GitHubClientOptions {
   accessToken: string;
-  installation: Installation;
+  installationId: number;
   permissions: { [key: string]: string };
 }
 
@@ -405,7 +429,7 @@ interface GitHubInstallationClientOptions extends GitHubClientOptions {
  */
 class GitHubInstallationClient extends GitHubClient {
   readonly accessToken: string;
-  readonly installation: Installation;
+  readonly installationId: number;
   readonly permissions: { [key: string]: string };
 
   constructor({
@@ -413,12 +437,12 @@ class GitHubInstallationClient extends GitHubClient {
     cacheKeyComputer,
     entities,
     accessToken,
-    installation,
+    installationId,
     permissions,
   }: GitHubInstallationClientOptions) {
     super({ config, cacheKeyComputer, entities });
     this.accessToken = accessToken;
-    this.installation = installation;
+    this.installationId = installationId;
     this.permissions = permissions;
   }
 
@@ -439,13 +463,13 @@ class GitHubInstallationClient extends GitHubClient {
     this._assertSuccess(response);
   }
 
-  createRepositoryClient({ repository }: { repository: Repository }) {
+  createRepositoryClient({ repositoryUrl }: { repositoryUrl: string }) {
     return new GitHubRepositoryClient({ 
       config: this.config,
       cacheKeyComputer: this.cacheKeyComputer,
       entities: this.entities,
       accessToken: this.accessToken,
-      repository,
+      repositoryUrl,
     });
   }
 
@@ -459,28 +483,35 @@ class GitHubInstallationClient extends GitHubClient {
 
 interface GitHubRepositoryClientOptions extends GitHubClientOptions {
   accessToken: string;
-  repository: Repository;
+  repositoryUrl: string;
+}
+
+interface RepositoryConfigResponse {
+  yaml: string;
+  json: RepositoryConfig;
+  sha: string;
+  exists: boolean;
 }
 
 export class GitHubRepositoryClient extends GitHubClient {
 
   private readonly accessToken: string;
-  private readonly repository: Repository;
+  private readonly repositoryUrl: string;
 
-  constructor({ config, cacheKeyComputer, entities, accessToken, repository }: GitHubRepositoryClientOptions) {
+  constructor({ config, cacheKeyComputer, entities, accessToken, repositoryUrl }: GitHubRepositoryClientOptions) {
     super({ config, cacheKeyComputer, entities });
     this.accessToken = accessToken;
-    this.repository = repository;
+    this.repositoryUrl = repositoryUrl;
   }
 
   /**
    * Set the issue's labels.
    * @see https://docs.github.com/en/rest/reference/issues#update-an-issue
    */
-  async setIssueLabels({ issue, labels }: { issue: number; labels: string[] }) {
-    const url = this._url(`/issues/${issue}/labels`);
+  async setIssueLabels({ issue, labels }: { issue: number; labels: string[] }): Promise<void> {
+    const url = this._url(`/issues/${issue}`);
     const response = await fetch(url, {
-      method: "PUT",
+      method: "PATCH",
       headers: this._headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({ labels }),
     });
@@ -491,11 +522,12 @@ export class GitHubRepositoryClient extends GitHubClient {
    * Get the repository's tickettager config.
    * @see https://docs.github.com/en/rest/reference/repos#get-repository-content
    */
-  async getConfig() {
+  async getConfig(): Promise<RepositoryConfigResponse> {
     const url = this._url(`/contents/${this.config.CONFIG_FILE_PATH}`);
-    const body = await this._fetch(url, {
-      headers: this._headers(),
-    });
+    const body = await this._fetch<{ type: string, encoding: string, content: string, sha: string }>(
+      url, 
+      { headers: this._headers() },
+    );
 
     if (!body) {
       return {
@@ -509,12 +541,10 @@ export class GitHubRepositoryClient extends GitHubClient {
     if (body.encoding !== "base64") throw new Error("expected base64 encoding");
 
     const yaml = Buffer.from(body.content, "base64").toString("utf8");
-    let json = {};
-    if (yaml) {
-      json = YAML.parse(yaml);
-    }
+    let json: RepositoryConfig = YAML.parse(yaml);
     if (repositoryConfigSchema.validate(json).error) {
-      json = {};
+      console.warn("repository config is invalid", { repositoryUrl: this.repositoryUrl })
+      json = _.cloneDeep(repositoryConfigDefaults);
     }
     json = _.defaultsDeep(json, repositoryConfigDefaults);
     return { yaml, json, sha: body.sha, exists: true };
@@ -524,7 +554,7 @@ export class GitHubRepositoryClient extends GitHubClient {
    * Creates the repository's tickettager config.
    * @see https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents
    */
-  async createConfig() {
+  async createConfig(): Promise<RepositoryConfigResponse> {
     const json = _.cloneDeep(repositoryConfigDefaults);
     const yaml = YAML.stringify(json);
 
@@ -557,7 +587,7 @@ export class GitHubRepositoryClient extends GitHubClient {
     repositoryConfigYaml: string;
     sha: string;
     updatedRepositoryConfig: RepositoryConfig;
-  }) {
+  }): Promise<RepositoryConfigResponse> {
     if (repositoryConfigSchema.validate(updatedRepositoryConfig).error) {
       throw new Error("schema validation error");
     }
@@ -625,7 +655,7 @@ export class GitHubRepositoryClient extends GitHubClient {
   }
 
   _url(url: string) {
-    return this.repository.url + url;
+    return this.repositoryUrl + url;
   }
 
   _headers(headers = {}) {

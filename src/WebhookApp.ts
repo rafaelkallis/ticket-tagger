@@ -42,18 +42,17 @@ export function WebhookApp({ config, classifier, appClient }: WebhookAppOptions)
     if (!installation) throw new Error("installation not found");
 
     const installationClient = await appClient.createInstallationClient({
-      installation,
+      installationId: installation.id,
     });
 
     /* abort if no issues write permission */
     if (!installationClient.canWrite("issues")) return;
 
     const repositoryClient = installationClient.createRepositoryClient({
-      repository,
+      repositoryUrl: repository.url,
     });
 
-    // TODO remove any
-    const repositoryConfig: any = installationClient.canRead("single_file")
+    const repositoryConfig = installationClient.canRead("single_file")
       ? await repositoryClient.getConfig().then(({ json }) => json)
       : repositoryConfigDefaults;
 
@@ -66,10 +65,11 @@ export function WebhookApp({ config, classifier, appClient }: WebhookAppOptions)
     if (predictedLabelKey && similarity > 0) {
       const label = repositoryConfig.labels[predictedLabelKey];
       if (label.enabled) {
+        const existingLabels: string[] = (issue.labels || []).map(l => l.name);
         /* update label */
         await repositoryClient.setIssueLabels({
           issue: issue.number,
-          labels: [...(issue.labels || []), label.text],
+          labels: [...existingLabels, label.text],
         });
       }
 

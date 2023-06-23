@@ -66,7 +66,10 @@ declare global {
         };
         suspended_at: string | null;
       }>;
-      repositories?: {}[];
+      repositories?: Array<{}>;
+      repository?: {
+        url: string;
+      };
     }
   }
 }
@@ -93,7 +96,7 @@ export function WebApp({ config, appClient, mongoConnection, entities }: WebAppO
         _refreshToken: string /* refresh token is conciously ignored */,
         profile: GitHubStrategy.Profile
       ) {
-        const _json: any = profile._json; // TODO remove any
+        const _json = profile._json as { id: number };
         let user = await entities.User.findOne({ githubId: _json.id });
         user = user || new entities.User({ githubId: _json.id });
         user.accessToken = accessToken;
@@ -233,7 +236,8 @@ export function WebApp({ config, appClient, mongoConnection, entities }: WebAppO
       if (!req.githubOAuthClient) {
         throw new Error("expected githubOAuthClient");
       }
-      res.locals.installations = await req.githubOAuthClient.listInstallations();
+      const { installations } = await req.githubOAuthClient.listInstallations();
+      res.locals.installations = installations;
     }
     next();
   });
@@ -275,7 +279,7 @@ export function WebApp({ config, appClient, mongoConnection, entities }: WebAppO
         entities,
         accessToken: req.user.accessToken,
       });
-      const installations = await githubOAuthClient.listInstallations();
+      const { installations } = await githubOAuthClient.listInstallations();
       if (!installations.length) {
         return res.redirect("/install");
       }
@@ -335,7 +339,7 @@ export function WebApp({ config, appClient, mongoConnection, entities }: WebAppO
       repo,
     });
     req.githubRepositoryClient = req.githubOAuthClient.createRepositoryClient({
-      repository,
+      repositoryUrl: repository.url,
     });
     const config = await req.githubRepositoryClient.getConfig();
     Object.assign(res.locals, { repo, repository, config });
@@ -375,13 +379,14 @@ export function WebApp({ config, appClient, mongoConnection, entities }: WebAppO
     }
     /* here we authenticate with app instead of oauth in order to have ticket-tagger as committer */
     const installationClient = await appClient.createInstallationClient({
-      installation: res.locals.installation,
+      installationId: res.locals.installation.id,
     });
     if (!installationClient.canWrite("single_file")) {
       return res.status(403).render("repo", { errors: { permissions: true } });
     }
+    if (!res.locals.repository) throw new Error("expected res.locals.repository");
     const repositoryClient = installationClient.createRepositoryClient({
-      repository: res.locals.repository,
+      repositoryUrl: res.locals.repository.url,
     });
     /* create config if it does not exist */
     if (!res.locals.config.exists) {
@@ -401,10 +406,11 @@ export function WebApp({ config, appClient, mongoConnection, entities }: WebAppO
 
   app.get("/:owner", async function handleListRepositories(req, res) {
     if (!req.githubOAuthClient) throw new Error("expected githubOAuthClient");
-    res.locals.repositories =
+    const { repositories } =
       await req.githubOAuthClient.listRepositoriesByInstallationId({
         installationId: res.locals.installation.id,
       });
+    res.locals.repositories = repositories;
     res.render("owner", _.pick(req.query, ["new"]));
   });
 
