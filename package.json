@@ -47,7 +47,7 @@
     "@types/express-session": "1.17.7",
     "@types/jest": "29.5.2",
     "@types/jsonwebtoken": "9.0.2",
-    "@types/lodash": "4.14.195",
+    "@types/lodash": "4.14.202",
     "@types/node-fetch": "2.6.4",
     "@types/nunjucks": "3.2.2",
     "@types/passport-github": "1.1.7",
