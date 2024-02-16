@@ -38,7 +38,7 @@
     "nunjucks-octicons-extension": "1.0.1",
     "passport": "0.6.0",
     "passport-github": "1.1.0",
-    "rate-limiter-flexible": "2.4.1",
+    "rate-limiter-flexible": "5.0.0",
     "yaml": "2.3.4"
   },
   "devDependencies": {
