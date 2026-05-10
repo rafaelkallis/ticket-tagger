@@ -6,7 +6,7 @@
   "repository": "github:rafaelkallis/ticket-tagger",
   "main": "src/index.js",
   "engines": {
-    "node": "^20.x || ^22.x"
+    "node": "^24.x"
   },
   "scripts": {
     "start": "node src/index.js",

@@ -1,5 +1,5 @@
 # Builder stage: compile native addons and prune devDependencies
-FROM node:22-slim AS builder
+FROM node:24-slim AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY views/ views/
 RUN npm prune --omit=dev
 
 # Production stage
-FROM node:22-slim
+FROM node:24-slim
 
 WORKDIR /app
 
