@@ -56,9 +56,6 @@ async function stopApp() {
   }
 }
 
-process.once("beforeExit", () => {
-  void stopApp();
-});
 process.once("SIGINT", () => {
   void stopApp().finally(() => process.exit(process.exitCode || 0));
 });

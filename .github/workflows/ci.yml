@@ -61,7 +61,7 @@ jobs:
       
     - name: Test
       env:
-        MONGO_URI: ${{ secrets.MONGO_URI || 'mongodb://username:password@localhost:27017/ticket-tagger?authSource=admin' }}
+        MONGO_URI: ${{ secrets.MONGO_URI || format('mongodb://{0}:{1}@localhost:27017/ticket-tagger?authSource=admin', 'username', 'password') }}
       run: npm test
 
     - name: Stop services
