@@ -57,10 +57,10 @@ async function stopApp() {
 }
 
 process.once("SIGINT", () => {
-  void stopApp().finally(() => process.exit(process.exitCode || 0));
+  stopApp().finally(() => process.exit(process.exitCode || 0));
 });
 process.once("SIGTERM", () => {
-  void stopApp().finally(() => process.exit(process.exitCode || 0));
+  stopApp().finally(() => process.exit(process.exitCode || 0));
 });
 
 app.start();
