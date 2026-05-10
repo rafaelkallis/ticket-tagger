@@ -15,6 +15,7 @@ RUN npm ci
 
 COPY src/ src/
 COPY views/ views/
+COPY dist/ dist/
 
 # Strip devDependencies in-place
 RUN npm prune --omit=dev
@@ -28,6 +29,7 @@ WORKDIR /app
 COPY --from=builder /app/node_modules node_modules/
 COPY --from=builder /app/src src/
 COPY --from=builder /app/views views/
+COPY --from=builder /app/dist dist/
 COPY package.json ./
 
 # Run as the built-in unprivileged node user
@@ -40,4 +42,3 @@ CMD ["node", "src/index.js"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000) + '/status', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
-

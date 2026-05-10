@@ -42,6 +42,28 @@ const { App } = require("./App");
 
 const app = new App({ config });
 
-process.once("beforeExit", () => app.stop());
+let isStopping = false;
+async function stopApp() {
+  if (isStopping) {
+    return;
+  }
+  isStopping = true;
+  try {
+    await app.stop();
+  } catch (err) {
+    console.error(err);
+    process.exitCode = 1;
+  }
+}
+
+process.once("beforeExit", () => {
+  void stopApp();
+});
+process.once("SIGINT", () => {
+  void stopApp().finally(() => process.exit(process.exitCode || 0));
+});
+process.once("SIGTERM", () => {
+  void stopApp().finally(() => process.exit(process.exitCode || 0));
+});
 
 app.start();

@@ -56,8 +56,8 @@
     "applicationinsights-native-metrics": "0.0.11"
   },
   "overrides": {
-    "tar": ">=7.5.11",
-    "@octokit/request-error": ">=5.1.1"
+    "tar": "7.5.11",
+    "@octokit/request-error": "5.1.1"
   },
   "jest": {
     "testEnvironment": "node"
