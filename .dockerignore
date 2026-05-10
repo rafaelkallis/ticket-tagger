@@ -1,0 +1,19 @@
+.git/
+.gitignore
+node_modules/
+
+# Test files
+**/*.test.js
+**/__tests__/
+
+# Dev/local config
+compose.yml
+.env
+.env.*
+
+# Docs and meta
+README.md
+COPYING.md
+LICENSE.md
+SECURITY.md
+Procfile
