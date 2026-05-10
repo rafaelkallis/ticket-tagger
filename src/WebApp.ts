@@ -167,7 +167,7 @@ export function WebApp({ config, appClient, mongoConnection, entities }: WebAppO
   app.use(async function rateLimit(req, res, next) {
     res.set("RateLimit-Limit", String(config.RATELIMIT_WINDOW_POINTS));
     const [isSuccess, { remainingPoints, msBeforeNext }] = await limiter
-      .consume(req.ip, 1)
+      .consume(req.ip ?? req.connection.remoteAddress ?? "", 1)
       .then((res) => [true, res])
       .catch((res) => [false, res]);
 
