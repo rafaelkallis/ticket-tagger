@@ -58,7 +58,8 @@ jobs:
 
     - name: Start services
       run: docker compose up --wait
-      
+
+    # Uses src/config.js devDefault MONGO_URI to connect to the local compose MongoDB.
     - name: Test
       run: npm test
 

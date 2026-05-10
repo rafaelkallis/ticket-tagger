@@ -56,8 +56,9 @@ async function stopApp() {
   }
 }
 
-function handleSignal() {
-  stopApp().finally(() => process.exit(process.exitCode || 0));
+async function handleSignal() {
+  await stopApp();
+  process.exit(process.exitCode || 0);
 }
 
 process.once("SIGINT", handleSignal);
