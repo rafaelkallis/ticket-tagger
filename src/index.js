@@ -56,11 +56,11 @@ async function stopApp() {
   }
 }
 
-process.once("SIGINT", () => {
+function handleSignal() {
   stopApp().finally(() => process.exit(process.exitCode || 0));
-});
-process.once("SIGTERM", () => {
-  stopApp().finally(() => process.exit(process.exitCode || 0));
-});
+}
+
+process.once("SIGINT", handleSignal);
+process.once("SIGTERM", handleSignal);
 
 app.start();
