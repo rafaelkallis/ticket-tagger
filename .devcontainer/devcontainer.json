@@ -1,22 +1,17 @@
 {
-  "name": "tickettagger",
-  "image": "mcr.microsoft.com/vscode/devcontainers/base:debian",
+  "name": "ticket-tagger",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu22.04",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "18"
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    },
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "24"
     }
   },
   "customizations": {
     "vscode": {
-      "settings": {
-        "terminal.integrated.profiles.linux": {
-          "zsh": {
-            "path": "/usr/bin/zsh"
-          }
-        },
-        "terminal.integrated.defaultProfile.linux": "zsh"
-      },
+      "settings": {},
       "extensions": [
         "ms-azuretools.vscode-docker",
         "dbaeumer.vscode-eslint",
