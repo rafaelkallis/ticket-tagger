@@ -2,21 +2,21 @@ name: Continuous Integration
 
 on: 
   push: 
-    branches: [ prod, beta ]
+    branches: [ prod, main ]
   pull_request:
-    branches: [ prod, beta ]
+    branches: [ prod, main ]
 
 jobs:
   build:
     strategy:
       matrix:
-        ubuntu-version: [ ubuntu-20.04, ubuntu-22.04 ]
-        node-version: [ 16.x, 18.x ]
+        ubuntu-version: [ ubuntu-22.04 ]
+        node-version: [ 22.x, 24.x ]
     runs-on: ${{ matrix.ubuntu-version }}
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       
     - name: Get latest model version
       id: get-latest-model-version
@@ -55,8 +55,42 @@ jobs:
     - name: Install
       if: steps.cache-node_modules.outputs.cache-hit != 'true'
       run: npm ci
-      
+
+    - name: Start services
+      run: docker compose up --wait
+
+    # Uses src/config.js devDefault MONGO_URI to connect to the local compose MongoDB.
     - name: Test
-      env:
-        MONGO_URI: ${{ secrets.MONGO_URI }}
       run: npm test
+
+    - name: Stop services
+      if: always()
+      run: docker compose down -v
+
+  image:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}-v${{ github.run_id }}

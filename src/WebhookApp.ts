@@ -89,7 +89,7 @@ export function WebhookApp({ config, classifier, appClient }: WebhookAppOptions)
 
   /* github ip whitelist */
   middleware.use(function githubIpWhitelist(req, res, next) {
-    const match = ipWhitelist.contains(req.ip);
+    const match = ipWhitelist.contains(req.ip ?? req.connection.remoteAddress ?? "");
     return match ? next() : res.sendStatus(403);
   });
 

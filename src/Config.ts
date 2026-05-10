@@ -106,7 +106,10 @@ export const config: Config = envalid.cleanEnv(process.env, {
     devDefault:
       "0000000000000000000000000000000000000000000000000000000000000000",
   }),
-  MONGO_URI: envalid.url(),
+  MONGO_URI: envalid.url({
+    devDefault:
+      "mongodb://username:password@localhost:27017/ticket-tagger?authSource=admin",
+  }),
   MONGO_ENCRYPTION_KEY: hexKey({
     devDefault:
       "0000000000000000000000000000000000000000000000000000000000000000",
