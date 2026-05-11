@@ -49,7 +49,7 @@
     "@types/lodash": "4.14.202",
     "@types/node-fetch": "2.6.4",
     "@types/nunjucks": "3.2.2",
-    "@types/passport-github": "1.1.7",
+    "@types/passport-github": "1.1.13",
     "@types/supertest": "2.0.12",
     "eslint": "8.46.0",
     "eslint-config-prettier": "9.1.0",
